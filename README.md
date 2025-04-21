@@ -36,7 +36,7 @@ Ideal para editar imágenes fácilmente sin necesidad de programas complicados.
 
 ## Capturas de pantalla 📸
 
-(vista3d.jpg)
+(CapturaXocoStudio.jpg)
 
 ---
 
