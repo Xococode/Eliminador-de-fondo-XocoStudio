@@ -36,7 +36,7 @@ Ideal para editar imágenes fácilmente sin necesidad de programas complicados.
 
 ## Capturas de pantalla 📸
 
-*(Puedes añadir aquí imágenes de ejemplo del flujo de uso)*
+(vista3d.jpg)
 
 ---
 
