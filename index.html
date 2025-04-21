@@ -15,7 +15,7 @@
         .checkerboard-bg { background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
         .tool-btn.active-tool { background-color: #d1d5db; /* gray-300 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
         /* Añadido estilo para el botón de eliminar huecos activo */
-        .tool-btn.active-hole-remover { background-color: #fde047; /* yellow-300 */ color: #713f12; /* yellow-800 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
+        .tool-btn.active-hole-remover { background-color: #fde047 !important; /* yellow-300 */ color: #713f12 !important; /* yellow-800 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #ca8a04; /* yellow-600 */}
         .brush-shape.active-shape { border-color: #3b82f6; /* blue-500 */ border-width: 2px; }
         #canvas-outer-container { width: 100%; height: 100%; overflow: hidden; position: relative; /* Cursor se define por JS */ }
         #canvas-inner-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
@@ -83,7 +83,7 @@
                         <i class="fas fa-wand-magic-sparkles mr-1"></i> Fondo Automático
                     </button>
                     <!-- NEW BUTTON -->
-                    <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Haz clic aquí, luego clic en un 'hueco' (ej: interior de 'o') para eliminarlo según su color original. Usa la tolerancia de abajo.">
+                    <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Activa/Desactiva el modo 'Eliminar Hueco'. Haz clic en un 'hueco' (ej: interior de 'o') para eliminarlo según su color original. Usa la tolerancia de abajo. Pulsa Esc para cancelar.">
                         <i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno
                     </button>
                     <!-- END NEW BUTTON -->
@@ -226,6 +226,7 @@
             let isFloodFilling = false; // Estado para el proceso automático de bordes
             let cancelFloodFillRequest = false; // Flag para solicitar cancelación
             let waitingForInnerHoleClick = false; // <-- State for the new tool
+            let holeRemoverFeedbackTimeout = null; // <-- Timeout specific for hole remover button text reset
 
             // Performance Throttling
             let lastRenderTime = 0;
@@ -294,9 +295,10 @@
                 canvasOuterContainer.addEventListener('mouseleave', () => {
                     clearPreviewCanvas();
                     // If waiting for hole click and mouse leaves, cancel waiting state
-                    if (waitingForInnerHoleClick) {
-                        cancelInnerHoleClickMode();
-                    }
+                    // NOTE: We DON'T cancel the sticky mode on mouse leave anymore.
+                    // if (waitingForInnerHoleClick) {
+                    //     cancelInnerHoleClickMode();
+                    // }
                 });
             }
 
@@ -314,7 +316,11 @@
                 undoBtn.addEventListener('click', undo);
                 resetBtn.addEventListener('click', () => {
                     if (!originalImage || history.length <= 1) return;
-                    if (confirm('¿Resetear todas las ediciones? Esta acción no se puede deshacer.')) resetMask();
+                    if (confirm('¿Resetear todas las ediciones? Esta acción no se puede deshacer.')) {
+                         // Ensure mode is cancelled on reset
+                        if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                        resetMask();
+                    }
                  });
                 exportBtn.addEventListener('click', exportImage);
                 copyBtn.addEventListener('click', copyImageToClipboard);
@@ -322,7 +328,9 @@
 
                 // --- Listener para Botón Automático (con cancelación) ---
                 removeEdgeBgBtn.addEventListener('click', () => {
-                    if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel hole mode if active
+                    // --- MODIFICATION: Cancel hole mode if active ---
+                    if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                    // --- END MODIFICATION ---
                     if (isFloodFilling) {
                         console.log("%cSolicitando cancelación de Flood Fill...", 'color: orange; font-weight: bold;');
                         cancelFloodFillRequest = true;
@@ -349,7 +357,8 @@
             // --- Core Logic ---
             function handleFile(file) {
                 console.log('>>> handleFile:', file?.name); // LOG 6
-                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel if loading new file
+                 // Ensure mode is cancelled on new file load
+                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
                 if (!file?.type?.startsWith('image/')) {
                     alert('Archivo no válido. Selecciona una imagen.');
                     console.error('Tipo inválido:', file?.type);
@@ -377,6 +386,8 @@
 
             function showLoadingState(fileName) {
                 console.log("Mostrando carga:", fileName);
+                 // Ensure mode is cancelled on loading start
+                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
                 loadingSpinner.classList.remove('hidden');
                 canvasPlaceholder.classList.add('hidden');
                 filenameDisplay.textContent = `Cargando: ${fileName}...`;
@@ -388,12 +399,13 @@
                 originalImageDataCache = null; // Clear cache
                 ctx = previewCtx = maskCtx = null;
                 history = [];
-                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel mode on load
                 updateActionButtonsState();
             }
 
             function handleLoadingError(fileName, message) {
                 console.error(`Error cargando ${fileName || 'imagen'}: ${message}`);
+                 // Ensure mode is cancelled on loading error
+                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
                 alert(`Error al cargar "${fileName || ''}":\n${message}`);
                 loadingSpinner.classList.add('hidden');
                 canvasPlaceholder.classList.remove('hidden');
@@ -402,13 +414,13 @@
                 originalImageDataCache = null; // Clear cache
                 ctx = previewCtx = maskCtx = null;
                 history = [];
-                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel mode on error
                 updateActionButtonsState();
             }
 
             function initializeEditor(fileName, loadedImage) {
                  console.log(">>> initializeEditor:", fileName); // LOG 12
-                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel mode on init
+                 // Ensure mode is cancelled on editor initialization
+                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
                  if (!loadedImage || !loadedImage.naturalWidth || !loadedImage.naturalHeight) {
                      handleLoadingError(fileName, "Datos de imagen inválidos."); return;
                  }
@@ -511,9 +523,10 @@
              }
 
             function resetMask() {
+                 // Ensure mode is cancelled on mask reset
+                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
                 if (!maskCtx || !maskCanvas || !originalImage) return;
                 console.log("Reseteando máscara a blanco (opaco).");
-                if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel mode on reset
                 maskCtx.fillStyle = 'white';
                 maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
                 history = [];
@@ -562,8 +575,8 @@
                 previewCtx.restore();
             }
 
-            function drawLinePreview(startX, startY, endX, endY) { /* No change */
-                 if (!previewCtx || waitingForInnerHoleClick) return; // Don't draw if waiting
+            function drawLinePreview(startX, startY, endX, endY) { /* Don't draw if waiting */
+                 if (!previewCtx || waitingForInnerHoleClick) return;
                  clearPreviewCanvas(); previewCtx.save(); previewCtx.beginPath();
                  previewCtx.moveTo(startX, startY); previewCtx.lineTo(endX, endY);
                  previewCtx.strokeStyle = (currentTool === 'line') ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)';
@@ -609,7 +622,9 @@
                  if (waitingForInnerHoleClick) {
                      console.log(`Click detectado para eliminar hueco en: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
                      removeInnerHoleAt(imageX, imageY); // Execute the removal
-                     cancelInnerHoleClickMode(); // Deactivate mode after click
+                     // --- MODIFICATION REMOVED ---
+                     // cancelInnerHoleClickMode(); // <<< NO LONGER CANCELLING HERE for sticky mode
+                     // --- END MODIFICATION ---
                      return; // Stop further processing for this click
                  }
 
@@ -637,8 +652,8 @@
                  }
             }
 
-            function handleInteractionMove(e) {
-                 if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return; // Ignore move if waiting for click
+            function handleInteractionMove(e) { /* Ignore move if waiting for click */
+                 if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
                  const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
                  currentMousePos = { x: imageX, y: imageY };
                  if (isPanning) { panX = screenX - panStartX; panY = screenY - panStartY; updateTransform(); updateStatusBar(); }
@@ -647,10 +662,9 @@
                  else { drawBrushPreview(imageX, imageY); }
             }
 
-            function handleInteractionEnd(e) { /* No change in core logic, but ensure state resets */
+            function handleInteractionEnd(e) { /* No change needed here */
                 if (isPanning) { isPanning = false; canvasOuterContainer.style.cursor = getToolCursor(); }
                 else if (isDrawing) { isDrawing = false; saveStateToHistory(); clearPreviewCanvas(); drawBrushPreview(currentMousePos.x, currentMousePos.y); }
-                // If waitingForInnerHoleClick was true, it should have been handled and reset in handleInteractionStart
             }
 
              function drawLineOnMask(imgX1, imgY1, imgX2, imgY2, tool, options) { /* No change */
@@ -664,20 +678,38 @@
              }
 
             function setActiveTool(tool) {
-                 if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); // Cancel hole mode if changing tool
+                 // --- MODIFICATION: Cancel hole mode if changing TO another tool ---
+                 if (tool !== 'hole-remover' && waitingForInnerHoleClick) {
+                     cancelInnerHoleClickMode();
+                 }
+                 // --- END MODIFICATION ---
+
                  currentTool = tool; console.log("Herramienta activa:", tool);
+                 // Remove active class from manual tool buttons
                  [brushBtn, eraserBtn, lineBtn, eraserLineBtn].forEach(btn => btn.classList.remove('active-tool'));
-                 const activeBtn = document.getElementById(`${tool}-tool`);
-                 if (activeBtn) activeBtn.classList.add('active-tool');
+
+                 // Only add active class if it's one of the manual tool buttons
+                 if (['brush', 'eraser', 'line', 'eraser-line'].includes(tool)) {
+                    const activeBtn = document.getElementById(`${tool}-tool`);
+                    if (activeBtn) activeBtn.classList.add('active-tool');
+                 }
+                 // Note: active state for hole remover is handled separately by its specific class
+
                  const isBrushOrEraser = tool === 'brush' || tool === 'eraser';
+                 const isLineTool = tool === 'line' || tool === 'eraser-line';
+                 const showBrushOptions = isBrushOrEraser || isLineTool; // Show size for lines too
+
                  featherOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none';
                  shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none';
-                 brushOptionsSection.style.display = 'block'; // Always show options like size
-                 if (isDrawingLine && (tool !== 'line' && tool !== 'eraser-line')) {
+                 brushOptionsSection.style.display = showBrushOptions ? 'block' : 'none'; // Hide options if not brush/eraser/line
+
+                 if (isDrawingLine && !isLineTool) {
                     isDrawingLine = false; clearPreviewCanvas(); console.log("Línea cancelada por cambio de herramienta.");
                  }
-                 canvasOuterContainer.style.cursor = getToolCursor(); updateStatusBar();
+                 canvasOuterContainer.style.cursor = getToolCursor();
+                 updateStatusBar();
             }
+
 
              function getToolCursor() {
                  if (waitingForInnerHoleClick) return 'crosshair'; // Cursor for clicking the hole
@@ -728,7 +760,7 @@
                  updateActionButtonsState();
             }
 
-            function undo() { /* No change */
+            function undo() { /* Check for hole mode */
                 if (history.length <= 1 || isFloodFilling || waitingForInnerHoleClick) return;
                 console.log("Deshaciendo..."); history.pop();
                 const previousState = history[history.length - 1];
@@ -737,15 +769,15 @@
             }
 
             // --- Zoom/Pan ---
-            function handleWheelZoom(e) { /* No change */
-                if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return; // Prevent zoom while waiting
+            function handleWheelZoom(e) { /* Prevent zoom while waiting */
+                if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
                 e.preventDefault();
                 const { screenX, screenY } = getInteractionPos(e);
                 const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
                 zoomInOut(zoomFactor, screenX, screenY);
             }
             function updateTransform() { if (canvasInnerContainer) canvasInnerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`; }
-            function updateStatusBar() {
+            function updateStatusBar() { /* Updated to show hole remover status */
                 zoomLevelSpan.textContent = Math.round(zoomLevel * 100);
                 let toolName = 'Ninguna';
                 if (waitingForInnerHoleClick) { // Show hole remover status first
@@ -761,16 +793,18 @@
                  }
                  currentToolSpan.textContent = toolName;
             }
-            function handleKeyDown(e) {
+            function handleKeyDown(e) { /* Added Esc key to cancel hole mode */
                  // Allow Escape key to cancel inner hole click mode
                  if (e.key === 'Escape' && waitingForInnerHoleClick) {
                     cancelInnerHoleClickMode();
                     e.preventDefault();
                     return;
                  }
-                 if (e.key === ' ' && !isSpacePressed && !e.repeat && !waitingForInnerHoleClick) { // Prevent panning while waiting
+                 // Prevent panning while waiting
+                 if (e.key === ' ' && !isSpacePressed && !e.repeat && !waitingForInnerHoleClick) {
                     isSpacePressed = true; if (!isPanning) canvasOuterContainer.style.cursor = 'grab';
                  }
+                 // Allow undo even in hole mode if needed (or keep disabled via updateActionButtonsState)
                  if (e.ctrlKey && e.key === 'z' && !e.repeat) {
                     e.preventDefault(); undo();
                  }
@@ -786,38 +820,52 @@
                  if (newZoomLevel === zoomLevel) return; const dx = (pivotX - panX) * (newZoomLevel / zoomLevel - 1);
                  const dy = (pivotY - panY) * (newZoomLevel / zoomLevel - 1); panX -= dx; panY -= dy;
                  zoomLevel = newZoomLevel; updateTransform(); updateStatusBar(); clearPreviewCanvas();
-                 drawBrushPreview(currentMousePos.x, currentMousePos.y);
+                 drawBrushPreview(currentMousePos.x, currentMousePos.y); // Don't draw if waiting
              }
 
             // --- UI Feedback ---
             function showButtonFeedback(button, status, message = null, duration = 1500) { /* No change */
                  if (!button) return;
-                 button.classList.remove('success', 'error', 'working', 'cancelling');
+                 // Clean previous status unless it's the active hole remover style we want to keep temporarily
+                 if (!button.classList.contains('active-hole-remover')) {
+                    button.classList.remove('success', 'error', 'working', 'cancelling');
+                 } else {
+                     // If it's the active hole remover, only remove specific feedback classes
+                     button.classList.remove('success', 'error');
+                 }
+
                  const originalText = button.dataset.originalHtml || button.innerHTML;
                  if (!button.dataset.originalHtml) button.dataset.originalHtml = originalText;
                  const originalTitle = button.dataset.originalTitle || button.title;
                  if (!button.dataset.originalTitle) button.dataset.originalTitle = originalTitle;
 
                  const statusClass = `btn-feedback ${status}`;
+                 // Apply status class (like success/error)
                  button.classList.add(...statusClass.split(' '));
+
                  if (message) {
                       if (message.startsWith('<i class="fas ') || message.startsWith('<i class="fa ')) button.innerHTML = message;
                       else button.textContent = message;
                  }
+                 // Disable only if working or cancelling, allow clicks for success/error feedback
                  button.disabled = (status === 'working' || status === 'cancelling');
 
+                 // Clear the generic feedback timeout if it exists
                  if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout);
 
-                 if (status !== 'working' && status !== 'cancelling') {
+                 // Set timeout to remove the status class and restore original state *unless* it's the hole remover button being handled specially
+                 if (status !== 'working' && status !== 'cancelling' && button.id !== 'remove-inner-hole-btn') {
                       button.feedbackTimeout = setTimeout(() => {
-                          button.classList.remove('success', 'error');
-                          button.innerHTML = originalText;
-                          button.title = originalTitle;
+                          button.classList.remove('success', 'error'); // Remove specific status
+                          button.innerHTML = originalText; // Restore HTML
+                          button.title = originalTitle; // Restore title
                           button.disabled = !originalImage; // Reset basic disabled state
-                          delete button.dataset.originalHtml;
+                          delete button.dataset.originalHtml; // Clean up stored data
                           delete button.dataset.originalTitle;
                           updateActionButtonsState(); // Re-evaluate general state
                       }, duration);
+                 } else if (button.id === 'remove-inner-hole-btn') {
+                    // Special handling for hole remover button is done within removeInnerHoleAt
                  }
             }
 
@@ -886,7 +934,7 @@
             function floodFillMask(originalData, maskData, startX, startY, toleranceSq, visited) {
                 const width = originalData.width; const height = originalData.height;
                 const originalPixels = originalData.data; const maskPixels = maskData.data;
-                if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return;
+                if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return false; // Return false if already visited or out of bounds
                 const startIndex = (startY * width + startX) * 4;
                 const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
                 if (originalPixels[startIndex + 3] < 128) { visited[startY][startX] = true; return false; } // Ignore if the start is transparent
@@ -991,6 +1039,7 @@
                      console.log("   Finally Flood Fill (Edge): Limpiando estado.");
                     isFloodFilling = false; cancelFloodFillRequest = false;
                     hideProcessingOverlay();
+                     // Ensure button state is reset correctly if not showing final feedback
                      if (!removeEdgeBgBtn.classList.contains('success') && !removeEdgeBgBtn.classList.contains('error')) {
                          removeEdgeBgBtn.classList.remove('working', 'cancelling');
                          if (removeEdgeBgBtn.dataset.originalHtml) removeEdgeBgBtn.innerHTML = removeEdgeBgBtn.dataset.originalHtml;
@@ -1003,12 +1052,17 @@
             // --- NEW: Inner Hole Removal Logic ---
             function activateInnerHoleClickMode() {
                 if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
-                console.log("Activando modo 'Eliminar Hueco Interno'");
-                // Deactivate other tools visually if needed (optional)
-                setActiveTool('none'); // Set currentTool to none or a specific identifier
-                currentTool = 'hole-remover'; // Use a specific identifier
+                console.log("Activando modo 'Eliminar Hueco Interno' (Pegajoso)");
+                // Deactivate other tools visually
+                setActiveTool('hole-remover'); // Set currentTool to specific identifier
                 waitingForInnerHoleClick = true;
                 removeInnerHoleBtn.classList.add('active-hole-remover'); // Visual feedback on button
+                // Clear any previous feedback timeout for this button
+                if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
+                // Ensure original HTML is stored if not already
+                if (!removeInnerHoleBtn.dataset.originalHtml) removeInnerHoleBtn.dataset.originalHtml = removeInnerHoleBtn.innerHTML;
+                if (!removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.dataset.originalTitle = removeInnerHoleBtn.title;
+
                 removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
                 canvasOuterContainer.style.cursor = 'crosshair'; // Indicate click mode
                 updateStatusBar();
@@ -1020,15 +1074,17 @@
                 if (!waitingForInnerHoleClick) return;
                 console.log("Cancelando modo 'Eliminar Hueco Interno'");
                 waitingForInnerHoleClick = false;
-                removeInnerHoleBtn.classList.remove('active-hole-remover');
-                // Restore original button text/icon
+                removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error'); // Remove active and feedback classes
+                // Clear any pending feedback timeout
+                if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
+                // Restore original button text/icon using the stored data-attribute
                 if (removeInnerHoleBtn.dataset.originalHtml) {
                     removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml;
-                } else { // Fallback if original wasn't saved (should be)
+                } else { // Fallback
                      removeInnerHoleBtn.innerHTML = '<i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno';
                 }
-                // Restore default tool if needed, or leave as is
-                setActiveTool('eraser'); // Or restore the previous tool? Setting to eraser is simpler.
+                 // Restore default tool or previous tool if tracked
+                setActiveTool('eraser'); // Setting to eraser is simpler
                 updateStatusBar();
                 updateActionButtonsState(); // Re-enable buttons
             }
@@ -1038,102 +1094,109 @@
                  if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache) {
                      console.warn("Eliminar Hueco cancelado: Faltan elementos o cache.");
                      alert("Error: No se pueden leer los datos de píxeles originales o la máscara.");
+                      // --- MODIFICATION: Reset button text even on early exit ---
+                      if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
+                      removeInnerHoleBtn.classList.add('error'); // Add error class temporarily
+                      removeInnerHoleBtn.innerHTML = '<i class="fas fa-times"></i> Error';
+                      holeRemoverFeedbackTimeout = setTimeout(() => {
+                          if (waitingForInnerHoleClick) { // Check if still active
+                               removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                               removeInnerHoleBtn.classList.remove('error'); // Ensure error class is removed
+                          } else {
+                              cancelInnerHoleClickMode(); // Fully cancel if mode changed during timeout
+                          }
+                      }, 1000); // Reset after 1 second
+                      // --- END MODIFICATION ---
                      return;
                  }
 
-                 const width = maskCanvas.width;
-                 const height = maskCanvas.height;
+                 const width = maskCanvas.width; const height = maskCanvas.height;
                  startX = Math.floor(startX); startY = Math.floor(startY);
-
-                 // Bounds check for the click itself
                  if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
-                    console.log("   Clic fuera de los límites.");
-                    return;
+                     console.log("   Clic fuera de los límites.");
+                     // Optionally provide feedback that click was outside
+                     return;
                  }
 
-                try {
+                 let pixelsChanged = 0;
+                 let success = false;
+                 let message = '';
+                 let statusClass = 'error'; // Default to error for feedback
+
+                 try {
                     const maskImageData = maskCtx.getImageData(0, 0, width, height);
                     const maskPixels = maskImageData.data;
                     const originalPixels = originalImageDataCache.data;
                     const tolerance = parseInt(edgeColorToleranceSlider.value, 10);
                     const toleranceSq = tolerance * tolerance * 3;
-
                     const startIndex = (startY * width + startX) * 4;
 
-                    // Check if the clicked area is already transparent in the mask
                     if (maskPixels[startIndex + 3] < 128) {
-                        console.log("   El área clicada ya es transparente en la máscara.");
-                        showButtonFeedback(removeInnerHoleBtn, 'error', 'Ya Transparente', 1000);
-                        return;
-                    }
+                        console.log("   El área clicada ya es transparente.");
+                        message = 'Ya Transparente';
+                        statusClass = 'error'; // Keep as error/warning feedback
+                    } else {
+                        const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
+                        console.log(`   Color original en clic: R=${startR} G=${startG} B=${startB}, Tolerancia^2: ${toleranceSq}`);
+                        const visited = Array(height).fill(null).map(() => Array(width).fill(false));
+                        const queue = [[startX, startY]]; visited[startY][startX] = true; maskPixels[startIndex + 3] = 0; pixelsChanged = 1;
+                        let iterations = 0; const maxIterations = width * height;
 
-                    // Get the original color at the click point
-                    const startR = originalPixels[startIndex];
-                    const startG = originalPixels[startIndex + 1];
-                    const startB = originalPixels[startIndex + 2];
-                    // We ignore original alpha, flood fill based on color similarity only
-
-                    console.log(`   Color original en clic: R=${startR} G=${startG} B=${startB}, Tolerancia^2: ${toleranceSq}`);
-
-                    // Flood fill erasing on the mask, based on original color similarity
-                    const visited = Array(height).fill(null).map(() => Array(width).fill(false));
-                    const queue = [[startX, startY]];
-                    visited[startY][startX] = true;
-                    maskPixels[startIndex + 3] = 0; // Erase the starting pixel in the mask
-
-                    let pixelsChanged = 1;
-                    let iterations = 0;
-                    const maxIterations = width * height; // Safety limit
-
-                    while (queue.length > 0) {
-                        iterations++;
-                         if (iterations > maxIterations) { console.warn(`Flood fill (hueco) excedió límite desde (${startX}, ${startY}).`); break; }
-
-                        const [x, y] = queue.shift();
-                        const neighbors = [ [x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y] ];
-
-                        for (const [nx, ny] of neighbors) {
-                            if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
-                                const nIndex = (ny * width + nx) * 4;
-
-                                // IMPORTANT CHECK: Only fill if the neighbor is currently OPAQUE in the mask
-                                if (maskPixels[nIndex + 3] > 128) {
-                                    // Check original color similarity
-                                    const nR = originalPixels[nIndex];
-                                    const nG = originalPixels[nIndex + 1];
-                                    const nB = originalPixels[nIndex + 2];
-                                    const distSq = colorDistance(startR, startG, startB, nR, nG, nB);
-
-                                    if (distSq <= toleranceSq) {
-                                        visited[ny][nx] = true;
-                                        queue.push([nx, ny]);
-                                        maskPixels[nIndex + 3] = 0; // Erase this neighbor in the mask
-                                        pixelsChanged++;
-                                    }
-                                } else {
-                                     visited[ny][nx] = true; // Mark transparent neighbors as visited to prevent re-checking
+                        while (queue.length > 0) {
+                            iterations++; if (iterations > maxIterations) { console.warn(`Flood fill (hueco) excedió límite.`); break; }
+                            const [x, y] = queue.shift();
+                            const neighbors = [ [x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y] ];
+                            for (const [nx, ny] of neighbors) {
+                                if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
+                                    const nIndex = (ny * width + nx) * 4;
+                                    if (maskPixels[nIndex + 3] > 128) { // Check MASK opacity
+                                        const nR = originalPixels[nIndex]; const nG = originalPixels[nIndex + 1]; const nB = originalPixels[nIndex + 2];
+                                        const distSq = colorDistance(startR, startG, startB, nR, nG, nB); // Check ORIGINAL color
+                                        if (distSq <= toleranceSq) {
+                                            visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsChanged++; // ERASE MASK
+                                        }
+                                    } else { visited[ny][nx] = true; } // Mark visited if already transparent in mask
                                 }
                             }
                         }
+                        console.log(`   Flood fill (hueco) completado. ${pixelsChanged} píxeles de máscara borrados.`);
+                        if (pixelsChanged > 0) {
+                            maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender();
+                            message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true;
+                        } else {
+                            message = 'No Cambios'; statusClass = 'error'; success = false; // Should not happen if start pixel was opaque
+                        }
                     }
-
-                    console.log(`   Flood fill (hueco) completado. ${pixelsChanged} píxeles de máscara borrados.`);
-
-                    if (pixelsChanged > 0) {
-                        maskCtx.putImageData(maskImageData, 0, 0);
-                        saveStateToHistory();
-                        requestRender();
-                        showButtonFeedback(removeInnerHoleBtn, 'success', '<i class="fas fa-check"></i> Hueco Borrado', 1000);
-                    } else {
-                        console.log("   No se borraron píxeles adicionales (quizás sólo el punto inicial o ya estaba borrado).");
-                        showButtonFeedback(removeInnerHoleBtn, 'error', 'No Cambios', 1000); // Provide feedback if nothing happened
-                    }
-
-                } catch (error) {
+                 } catch (error) {
                     console.error("Error durante la eliminación de hueco interno:", error);
                     alert(`Error al eliminar hueco: ${error.message}`);
-                    showButtonFeedback(removeInnerHoleBtn, 'error', '<i class="fas fa-times"></i> Error', 1500);
-                }
+                    message = '<i class="fas fa-times"></i> Error'; statusClass = 'error'; success = false;
+                 } finally {
+                     // --- MODIFICATION: Handle button feedback and reset ---
+                     const feedbackDuration = 1000; // How long to show success/error message
+
+                     // Clear previous specific timeout if any
+                     if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
+
+                     // Apply feedback styles and message
+                     removeInnerHoleBtn.classList.remove('success', 'error'); // Clear previous feedback first
+                     removeInnerHoleBtn.classList.add(statusClass); // Add current status class
+                     removeInnerHoleBtn.innerHTML = message; // Show message
+
+                     // Set timeout to revert text back to "active" state
+                     holeRemoverFeedbackTimeout = setTimeout(() => {
+                         removeInnerHoleBtn.classList.remove('success', 'error'); // Remove status class
+                         if (waitingForInnerHoleClick) { // Check if mode is *still* active
+                              removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                         } else {
+                             // If mode got cancelled during the timeout, cancelInnerHoleClickMode should have reset the text already,
+                             // but we can double-check or call it again for safety.
+                             // console.log("Hole mode cancelled during feedback timeout.");
+                             // cancelInnerHoleClickMode(); // Optionally call again
+                         }
+                     }, feedbackDuration);
+                     // --- END MODIFICATION ---
+                 }
             }
 
 
