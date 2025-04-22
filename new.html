@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1528,15 +1527,3 @@ html
     </script>
 </body>
 </html>
-```
-
-**Resumen de los Cambios Clave (incluyendo la corrección anterior):**
-
-1.  **Corrección de `handleKeyDown`:**
-    *   Ahora comprueba directamente las variables de estado `isDrawing`, `isDrawingLine`, `isDrawingContinuousLine` en lugar de una variable inexistente `isEditingManually`.
-    *   Evita que los atajos de teclado cambien la herramienta *mientras* estás activamente usando una (arrastrando el ratón).
-    *   También evita que `Ctrl+Z` se active mientras se dibuja.
-    *   Se añade `e.preventDefault()` a la pulsación de la barra espaciadora para evitar el scroll de la página.
-    *   Se refina la lógica de cuándo se activan los atajos (comprobando también `isFloodFilling` y `waitingForInnerHoleClick`).
-
-Este código debería funcionar como se espera, permitiéndote cambiar entre herramientas con las teclas B, E, L, Shift+L y X, siempre y cuando no estés en medio de una acción de dibujo con el ratón.
