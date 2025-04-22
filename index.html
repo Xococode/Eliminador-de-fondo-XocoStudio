@@ -37,6 +37,12 @@
         .processing-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: none; }
         .processing-overlay i { margin-bottom: 10px; }
         .processing-overlay p { margin-top: 0px; font-size: 1.1rem; }
+         /* Estilo para icono de trazo */
+         .fa-continuous-eraser-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+         .fa-continuous-eraser-line::before { content: "\f55b"; /* Icono signature o similar */ font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; }
+         .fa-continuous-eraser-line::after { content: "\f12d"; /* Icono eraser */ font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #ef4444; /* Red */ }
+         #continuous-eraser-line-tool i { font-size: 1em; } /* Ajustar tamaño si es necesario */
+
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col min-h-screen overflow-hidden">
@@ -82,11 +88,9 @@
                     <button id="remove-edge-bg-btn" class="w-full bg-cyan-600 hover:bg-cyan-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar fondo basado en el color de los bordes. Haz clic de nuevo para intentar cancelar.">
                         <i class="fas fa-wand-magic-sparkles mr-1"></i> Fondo Automático
                     </button>
-                    <!-- NEW BUTTON -->
                     <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Activa/Desactiva el modo 'Eliminar Hueco'. Haz clic en un 'hueco' (ej: interior de 'o') para eliminarlo según su color original. Usa la tolerancia de abajo. Pulsa Esc para cancelar.">
                         <i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno
                     </button>
-                    <!-- END NEW BUTTON -->
                     <div class="mt-2">
                          <label for="edge-color-tolerance" class="block text-sm font-medium text-gray-700">Tolerancia (<span id="edge-color-tolerance-value">30</span>):</label>
                          <input type="range" id="edge-color-tolerance" min="1" max="150" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled>
@@ -102,12 +106,19 @@
                         <button id="eraser-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Borrador Eliminar (E)" disabled> <i class="fas fa-eraser fa-fw"></i> </button>
                         <button id="line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Conservar (L) - Clic inicio, Clic fin" disabled> <i class="fas fa-minus fa-fw"></i> </button>
                         <button id="eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Borrador (Shift+L) - Clic inicio, Clic fin" disabled> <i class="fa-line-eraser"></i> </button>
+                        <!-- NUEVO BOTÓN -->
+                        <button id="continuous-eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Trazo Borrador Continuo (X) - Clic, Clic, Clic... (Esc para cancelar)" disabled>
+                             <i class="fa-continuous-eraser-line"></i> <!-- Icono personalizado o fas fa-route -->
+                        </button>
+                         <!-- FIN NUEVO BOTÓN -->
                     </div>
                 </div>
 
-                <!-- Opciones Pincel/Borrador -->
+                <!-- Opciones Pincel/Borrador/Trazo -->
                 <div id="brush-options-section" class="space-y-3">
-                    <div><label for="brush-size" class="block text-sm font-medium text-gray-700">Tamaño: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                     <!-- Ajustado: Mostrar Tamaño siempre que la sección esté visible -->
+                    <div><label for="brush-size" class="block text-sm font-medium text-gray-700">Tamaño / Grosor: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                     <!-- Fin Ajustado -->
                     <div id="feather-option"><label for="brush-feather" class="block text-sm font-medium text-gray-700">Difuminado: <span id="brush-feather-value">0.10</span></label><input type="range" id="brush-feather" min="0" max="1" step="0.05" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
                     <div><label for="brush-opacity" class="block text-sm font-medium text-gray-700">Opacidad: <span id="brush-opacity-value">1.00</span></label><input type="range" id="brush-opacity" min="0.05" max="1" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
                     <div id="shape-option"><label class="block text-sm font-medium text-gray-700">Forma:</label><div class="flex space-x-2 mt-1"><button id="brush-shape-circle" class="brush-shape p-1 border rounded-full w-6 h-6 bg-gray-700 disabled:opacity-50" title="Circular" disabled></button><button id="brush-shape-square" class="brush-shape p-1 border rounded w-6 h-6 bg-gray-700 disabled:opacity-50" title="Cuadrado" disabled></button></div></div>
@@ -152,7 +163,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM Cargado - XocoStudio Background Remover"); // LOG 1
+            console.log("DOM Cargado - XocoStudio Background Remover");
 
             // --- DOM Elements ---
             const dropZone = document.getElementById('drop-zone');
@@ -173,6 +184,7 @@
             const eraserBtn = document.getElementById('eraser-tool');
             const lineBtn = document.getElementById('line-tool');
             const eraserLineBtn = document.getElementById('eraser-line-tool');
+            const continuousEraserLineBtn = document.getElementById('continuous-eraser-line-tool'); // <-- Nuevo Botón
             const brushOptionsSection = document.getElementById('brush-options-section');
             const featherOptionDiv = document.getElementById('feather-option');
             const shapeOptionDiv = document.getElementById('shape-option');
@@ -195,7 +207,7 @@
             const processingOverlay = document.getElementById('processing-overlay');
             const processingStatusText = document.getElementById('processing-status-text');
             const removeEdgeBgBtn = document.getElementById('remove-edge-bg-btn');
-            const removeInnerHoleBtn = document.getElementById('remove-inner-hole-btn'); // New Button Element
+            const removeInnerHoleBtn = document.getElementById('remove-inner-hole-btn');
             const edgeColorToleranceSlider = document.getElementById('edge-color-tolerance');
             const edgeColorToleranceValueSpan = document.getElementById('edge-color-tolerance-value');
 
@@ -203,11 +215,11 @@
             let ctx = null;
             let previewCtx = null;
             let originalImage = null;
-            let originalImageDataCache = null; // <-- Cache for original pixel data
+            let originalImageDataCache = null;
             let imageFilename = 'imagen';
             let maskCanvas = null;
             let maskCtx = null;
-            let isDrawing = false;
+            let isDrawing = false; // Para pincel/borrador normal
             let lastX = 0, lastY = 0;
             let history = [];
             const MAX_HISTORY = 30;
@@ -218,27 +230,29 @@
             let isPanning = false;
             let panStartX = 0, panStartY = 0;
             let isSpacePressed = false;
-            let isDrawingLine = false;
+            let isDrawingLine = false; // Para línea simple (inicio/fin)
             let lineStartX = 0, lineStartY = 0;
+            let isDrawingContinuousLine = false; // <-- Nuevo estado para línea continua
+            let lastContinuousLinePoint = null; // <-- Nuevo estado {x, y}
             let currentMousePos = { x: 0, y: 0 };
             let isClipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.write);
             let isClipboardReadSupported = !!(navigator.clipboard && navigator.clipboard.read);
-            let isFloodFilling = false; // Estado para el proceso automático de bordes
-            let cancelFloodFillRequest = false; // Flag para solicitar cancelación
-            let waitingForInnerHoleClick = false; // <-- State for the new tool
-            let holeRemoverFeedbackTimeout = null; // <-- Timeout specific for hole remover button text reset
+            let isFloodFilling = false;
+            let cancelFloodFillRequest = false;
+            let waitingForInnerHoleClick = false;
+            let holeRemoverFeedbackTimeout = null;
 
             // Performance Throttling
             let lastRenderTime = 0;
             const RENDER_THROTTLE = 16; // ms, approx 60fps
 
             // --- Verification ---
-            if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn) { // Added check for new button
+            if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn || !continuousEraserLineBtn) { // Added check for new button
                 console.error("¡ERROR CRÍTICO! No se encontraron uno o más elementos esenciales del DOM. Verifica los IDs.");
                 alert("Error: La aplicación no pudo iniciarse correctamente.");
                 return;
             }
-            console.log("Elementos DOM principales OK."); // LOG 2
+            console.log("Elementos DOM principales OK.");
 
             // --- Initialization ---
             setActiveTool('eraser');
@@ -248,11 +262,24 @@
             setupInteractionListeners();
             setupToolControlListeners();
             checkClipboardSupport();
-            console.log("Inicialización completada."); // LOG 3
+            console.log("Inicialización completada.");
+
+            // --- Helper Function to Cancel Continuous Line ---
+            function cancelContinuousLineDrawing(silent = false) {
+                if (isDrawingContinuousLine) {
+                    if (!silent) console.log("Cancelando trazo borrador continuo.");
+                    isDrawingContinuousLine = false;
+                    lastContinuousLinePoint = null;
+                    clearPreviewCanvas(); // Clear any markers
+                    // No need to change tool, just reset state
+                    updateStatusBar();
+                    canvasOuterContainer.style.cursor = getToolCursor();
+                }
+            }
 
             // --- Setup Functions ---
             function setupImageLoadingListeners() {
-                console.log("Configurando listeners de carga..."); // LOG 4
+                console.log("Configurando listeners de carga...");
                 dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); });
                 dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); });
                 dropZone.addEventListener('drop', (e) => {
@@ -277,7 +304,7 @@
                     if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable) return;
                     if (handleClipboardPaste(e.clipboardData)) e.preventDefault();
                 });
-                console.log("Listeners de carga añadidos."); // LOG 5
+                console.log("Listeners de carga añadidos.");
             }
 
             function setupInteractionListeners() {
@@ -291,14 +318,9 @@
                 window.addEventListener('touchend', (e) => handleInteractionEnd(e.changedTouches[0]));
                 window.addEventListener('touchcancel', (e) => handleInteractionEnd(e.changedTouches[0]));
                 canvasOuterContainer.addEventListener('wheel', handleWheelZoom, { passive: false });
-                // Listener para el cursor fuera del canvas
                 canvasOuterContainer.addEventListener('mouseleave', () => {
                     clearPreviewCanvas();
-                    // If waiting for hole click and mouse leaves, cancel waiting state
-                    // NOTE: We DON'T cancel the sticky mode on mouse leave anymore.
-                    // if (waitingForInnerHoleClick) {
-                    //     cancelInnerHoleClickMode();
-                    // }
+                    // No cancelamos trazo continuo al salir, solo limpiamos preview
                 });
             }
 
@@ -308,6 +330,7 @@
                 eraserBtn.addEventListener('click', () => setActiveTool('eraser'));
                 lineBtn.addEventListener('click', () => setActiveTool('line'));
                 eraserLineBtn.addEventListener('click', () => setActiveTool('eraser-line'));
+                continuousEraserLineBtn.addEventListener('click', () => setActiveTool('continuous-eraser-line')); // <-- Nuevo Listener
                 brushSizeSlider.addEventListener('input', (e) => { brushOptions.size = parseInt(e.target.value); updateToolOptionsDisplay(); drawBrushPreview(currentMousePos.x, currentMousePos.y);});
                 brushFeatherSlider.addEventListener('input', (e) => { brushOptions.feather = parseFloat(e.target.value); updateToolOptionsDisplay(); drawBrushPreview(currentMousePos.x, currentMousePos.y); });
                 brushOpacitySlider.addEventListener('input', (e) => { brushOptions.opacity = parseFloat(e.target.value); updateToolOptionsDisplay(); drawBrushPreview(currentMousePos.x, currentMousePos.y); });
@@ -317,8 +340,8 @@
                 resetBtn.addEventListener('click', () => {
                     if (!originalImage || history.length <= 1) return;
                     if (confirm('¿Resetear todas las ediciones? Esta acción no se puede deshacer.')) {
-                         // Ensure mode is cancelled on reset
                         if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                        cancelContinuousLineDrawing(true); // Cancelar trazo silenciosamente
                         resetMask();
                     }
                  });
@@ -326,11 +349,9 @@
                 copyBtn.addEventListener('click', copyImageToClipboard);
                 edgeColorToleranceSlider.addEventListener('input', (e) => edgeColorToleranceValueSpan.textContent = e.target.value);
 
-                // --- Listener para Botón Automático (con cancelación) ---
                 removeEdgeBgBtn.addEventListener('click', () => {
-                    // --- MODIFICATION: Cancel hole mode if active ---
                     if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
-                    // --- END MODIFICATION ---
+                    cancelContinuousLineDrawing(true); // Cancelar trazo antes de acción auto
                     if (isFloodFilling) {
                         console.log("%cSolicitando cancelación de Flood Fill...", 'color: orange; font-weight: bold;');
                         cancelFloodFillRequest = true;
@@ -341,11 +362,11 @@
                     }
                 });
 
-                // --- Listener for NEW Inner Hole Button ---
                 removeInnerHoleBtn.addEventListener('click', () => {
-                    if (isFloodFilling) return; // Don't activate if auto is running
+                    if (isFloodFilling) return;
+                    cancelContinuousLineDrawing(true); // Cancelar trazo al activar modo hueco
                     if (waitingForInnerHoleClick) {
-                         cancelInnerHoleClickMode(); // Click again to cancel
+                         cancelInnerHoleClickMode();
                     } else {
                         activateInnerHoleClickMode();
                     }
@@ -356,38 +377,38 @@
 
             // --- Core Logic ---
             function handleFile(file) {
-                console.log('>>> handleFile:', file?.name); // LOG 6
-                 // Ensure mode is cancelled on new file load
+                 console.log('>>> handleFile:', file?.name);
                  if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                 cancelContinuousLineDrawing(true); // Cancelar trazo al cargar nueva imagen
                 if (!file?.type?.startsWith('image/')) {
                     alert('Archivo no válido. Selecciona una imagen.');
                     console.error('Tipo inválido:', file?.type);
                     return;
                 }
                 const reader = new FileReader();
-                reader.onloadstart = () => { console.log('   reader.onloadstart'); showLoadingState(file.name); } // LOG 7
+                reader.onloadstart = () => { console.log('   reader.onloadstart'); showLoadingState(file.name); }
                 reader.onload = (e) => {
-                    console.log('   reader.onload'); // LOG 8
+                    console.log('   reader.onload');
                     if (!e.target?.result) { handleLoadingError(file.name, 'Error al leer.'); return; }
                     originalImage = new Image();
                     originalImage.onload = () => {
-                        console.log(`      originalImage.onload OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`); // LOG 9
+                        console.log(`      originalImage.onload OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`);
                         if (originalImage.naturalWidth === 0 || originalImage.naturalHeight === 0) {
                             handleLoadingError(file.name, 'Dimensiones inválidas (0x0).'); originalImage = null; return;
                         }
                         initializeEditor(file.name, originalImage);
                     };
-                    originalImage.onerror = (err) => { console.error('originalImage.onerror:', err); handleLoadingError(file.name, 'Error al decodificar. ¿Formato soportado?'); originalImage = null; }; // LOG 10
+                    originalImage.onerror = (err) => { console.error('originalImage.onerror:', err); handleLoadingError(file.name, 'Error al decodificar. ¿Formato soportado?'); originalImage = null; };
                     originalImage.src = e.target.result;
                 };
-                reader.onerror = (err) => { console.error('reader.onerror:', err); handleLoadingError(file.name, 'Error de lectura.'); }; // LOG 11
+                reader.onerror = (err) => { console.error('reader.onerror:', err); handleLoadingError(file.name, 'Error de lectura.'); };
                 try { reader.readAsDataURL(file); } catch (error) { console.error("Error readAsDataURL:", error); handleLoadingError(file.name, 'Error iniciando lectura.'); }
             }
 
             function showLoadingState(fileName) {
                 console.log("Mostrando carga:", fileName);
-                 // Ensure mode is cancelled on loading start
                  if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                 cancelContinuousLineDrawing(true); // Cancelar trazo
                 loadingSpinner.classList.remove('hidden');
                 canvasPlaceholder.classList.add('hidden');
                 filenameDisplay.textContent = `Cargando: ${fileName}...`;
@@ -395,8 +416,8 @@
                 exportSection.classList.add('hidden');
                 canvas.classList.add('hidden');
                 previewCanvas.classList.add('hidden');
-                originalImage = null; // Resetear estado
-                originalImageDataCache = null; // Clear cache
+                originalImage = null;
+                originalImageDataCache = null;
                 ctx = previewCtx = maskCtx = null;
                 history = [];
                 updateActionButtonsState();
@@ -404,30 +425,29 @@
 
             function handleLoadingError(fileName, message) {
                 console.error(`Error cargando ${fileName || 'imagen'}: ${message}`);
-                 // Ensure mode is cancelled on loading error
                  if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                 cancelContinuousLineDrawing(true); // Cancelar trazo
                 alert(`Error al cargar "${fileName || ''}":\n${message}`);
                 loadingSpinner.classList.add('hidden');
                 canvasPlaceholder.classList.remove('hidden');
                 filenameDisplay.textContent = `Error al cargar`;
                 originalImage = null;
-                originalImageDataCache = null; // Clear cache
+                originalImageDataCache = null;
                 ctx = previewCtx = maskCtx = null;
                 history = [];
                 updateActionButtonsState();
             }
 
             function initializeEditor(fileName, loadedImage) {
-                 console.log(">>> initializeEditor:", fileName); // LOG 12
-                 // Ensure mode is cancelled on editor initialization
+                 console.log(">>> initializeEditor:", fileName);
                  if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                 cancelContinuousLineDrawing(true); // Cancelar trazo
                  if (!loadedImage || !loadedImage.naturalWidth || !loadedImage.naturalHeight) {
                      handleLoadingError(fileName, "Datos de imagen inválidos."); return;
                  }
                  imageFilename = fileName.replace(/\.[^/.]+$/, "") || 'imagen_editada';
                  filenameDisplay.textContent = `Editando: ${fileName} (${loadedImage.naturalWidth}x${loadedImage.naturalHeight})`;
 
-                 // --- Obtener Contextos ---
                  try {
                     ctx = canvas.getContext('2d', { willReadFrequently: false });
                     previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
@@ -441,8 +461,8 @@
                  if (!setupCanvases(loadedImage)) {
                      handleLoadingError(fileName, "Error configurando canvas."); return;
                  }
-                 cacheOriginalImageData(); // <-- Cache the original data
-                 resetMask(); // Crea máscara inicial y guarda estado
+                 cacheOriginalImageData();
+                 resetMask();
                  centerAndFitImage();
                  requestRender();
 
@@ -452,9 +472,9 @@
                  previewCanvas.classList.remove('hidden');
                  loadingSpinner.classList.add('hidden');
                  canvasPlaceholder.classList.add('hidden');
-                 setActiveTool(currentTool); // Set default tool (eraser)
+                 setActiveTool(currentTool);
                  updateActionButtonsState();
-                 console.log("<<< initializeEditor completado."); // LOG 13
+                 console.log("<<< initializeEditor completado.");
             }
 
              function setupCanvases(img) {
@@ -482,7 +502,6 @@
                  return true;
              }
 
-             // --- Function to cache original image data ---
              function cacheOriginalImageData() {
                 if (!originalImage || !canvas || !maskCanvas) {
                     originalImageDataCache = null;
@@ -506,8 +525,6 @@
                 } catch (e) {
                     console.error("Error al obtener ImageData original para cache:", e);
                     originalImageDataCache = null;
-                    // Alertar al usuario podría ser buena idea aquí si esto falla consistentemente
-                    // alert("Advertencia: No se pudieron leer los datos de píxeles originales. La función 'Eliminar Hueco Interno' podría no funcionar.");
                 }
              }
 
@@ -523,14 +540,14 @@
              }
 
             function resetMask() {
-                 // Ensure mode is cancelled on mask reset
                  if (waitingForInnerHoleClick) cancelInnerHoleClickMode();
+                 cancelContinuousLineDrawing(true); // Cancelar trazo
                 if (!maskCtx || !maskCanvas || !originalImage) return;
                 console.log("Reseteando máscara a blanco (opaco).");
                 maskCtx.fillStyle = 'white';
                 maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
                 history = [];
-                saveStateToHistory(); // Guarda estado inicial
+                saveStateToHistory();
                 updateActionButtonsState();
                 requestRender();
             }
@@ -551,8 +568,9 @@
 
             function clearPreviewCanvas() { if (previewCtx) previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height); }
 
-            function drawBrushPreview(imageX, imageY) { /* Don't draw preview if waiting for hole click */
-                if (!previewCtx || isPanning || waitingForInnerHoleClick || currentTool === 'line' || currentTool === 'eraser-line' || isDrawingLine) {
+            function drawBrushPreview(imageX, imageY) {
+                // Don't draw preview if hole clicking, panning, or using line tools
+                if (!previewCtx || isPanning || waitingForInnerHoleClick || currentTool === 'line' || currentTool === 'eraser-line' || currentTool === 'continuous-eraser-line' || isDrawingLine) {
                     clearPreviewCanvas();
                     return;
                 }
@@ -575,18 +593,18 @@
                 previewCtx.restore();
             }
 
-            function drawLinePreview(startX, startY, endX, endY) { /* Don't draw if waiting */
-                 if (!previewCtx || waitingForInnerHoleClick) return;
+            function drawLinePreview(startX, startY, endX, endY) {
+                 if (!previewCtx || waitingForInnerHoleClick || currentTool === 'continuous-eraser-line') return; // No preview for continuous line yet
                  clearPreviewCanvas(); previewCtx.save(); previewCtx.beginPath();
                  previewCtx.moveTo(startX, startY); previewCtx.lineTo(endX, endY);
                  previewCtx.strokeStyle = (currentTool === 'line') ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)';
-                 previewCtx.lineWidth = Math.max(1 / zoomLevel, brushOptions.size * 0.1);
+                 previewCtx.lineWidth = Math.max(1 / zoomLevel, brushOptions.size * 0.1); // Thin preview line
                  previewCtx.setLineDash([5 / zoomLevel, 5 / zoomLevel]); previewCtx.stroke(); previewCtx.restore();
             }
 
             function applyMaskModification(drawX, drawY, tool, options) { /* No change */
                 if (!maskCtx) return;
-                const isEraser = tool === 'eraser' || tool === 'eraser-line';
+                const isEraser = tool === 'eraser' || tool === 'eraser-line' || tool === 'continuous-eraser-line'; // Include new tool
                 maskCtx.save();
                 maskCtx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
                 const size = options.size; const halfSize = size / 2;
@@ -614,134 +632,235 @@
             }
 
             function handleInteractionStart(e) {
-                 if (!originalImage || isFloodFilling) return; // No interactuar si no hay imagen o se está procesando auto
+                 if (!originalImage || isFloodFilling) return;
                  if (e.preventDefault && e.cancelable) e.preventDefault();
                  const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
 
                  // --- Handle Inner Hole Click First ---
                  if (waitingForInnerHoleClick) {
                      console.log(`Click detectado para eliminar hueco en: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
-                     removeInnerHoleAt(imageX, imageY); // Execute the removal
-                     // --- MODIFICATION REMOVED ---
-                     // cancelInnerHoleClickMode(); // <<< NO LONGER CANCELLING HERE for sticky mode
-                     // --- END MODIFICATION ---
-                     return; // Stop further processing for this click
+                     removeInnerHoleAt(imageX, imageY);
+                     return;
                  }
 
-                 // --- Original Interaction Logic ---
+                 // --- Panning ---
                  if (isSpacePressed) {
                     isPanning = true; panStartX = screenX - panX; panStartY = screenY - panY;
                     canvasOuterContainer.style.cursor = 'grabbing';
-                 } else if (currentTool === 'line' || currentTool === 'eraser-line') {
-                    if (!isDrawingLine) {
-                         isDrawingLine = true; lineStartX = imageX; lineStartY = imageY;
-                         console.log(`Inicio línea (${currentTool}) en: ${lineStartX.toFixed(0)}, ${lineStartY.toFixed(0)}`);
-                         clearPreviewCanvas(); previewCtx.fillStyle = (currentTool === 'line') ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)';
-                         previewCtx.beginPath(); previewCtx.arc(lineStartX, lineStartY, 5 / zoomLevel, 0, Math.PI * 2); previewCtx.fill();
+                    return; // Don't process other tools if panning
+                 }
+
+                 // --- Tool Specific Logic ---
+                 switch (currentTool) {
+                    case 'line':
+                    case 'eraser-line':
+                        if (!isDrawingLine) {
+                            isDrawingLine = true; lineStartX = imageX; lineStartY = imageY;
+                            console.log(`Inicio línea (${currentTool}) en: ${lineStartX.toFixed(0)}, ${lineStartY.toFixed(0)}`);
+                            clearPreviewCanvas(); previewCtx.fillStyle = (currentTool === 'line') ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)';
+                            previewCtx.beginPath(); previewCtx.arc(lineStartX, lineStartY, 5 / zoomLevel, 0, Math.PI * 2); previewCtx.fill();
+                            canvasOuterContainer.style.cursor = 'crosshair';
+                        } else {
+                            console.log(`Fin línea (${currentTool}) en: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
+                            drawLineOnMask(lineStartX, lineStartY, imageX, imageY, currentTool, brushOptions);
+                            saveStateToHistory(); requestRender(); isDrawingLine = false; clearPreviewCanvas();
+                            setActiveTool(currentTool); // Resets cursor etc.
+                        }
+                        break;
+
+                    case 'continuous-eraser-line': // <-- NUEVA LÓGICA
+                         if (!isDrawingContinuousLine) {
+                             // Primer clic: Inicia el trazo
+                             isDrawingContinuousLine = true;
+                             lastContinuousLinePoint = { x: imageX, y: imageY };
+                             console.log(`Inicio Trazo Continuo en: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
+                             // Opcional: Dibujar marcador inicial en previewCanvas
+                             previewCtx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Rojo para indicar inicio/activo
+                             previewCtx.beginPath();
+                             previewCtx.arc(lastContinuousLinePoint.x, lastContinuousLinePoint.y, 3 / zoomLevel, 0, Math.PI * 2);
+                             previewCtx.fill();
+                         } else {
+                             // Clics subsiguientes: Dibujar segmento desde el último punto
+                             console.log(`Segmento Trazo Continuo a: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
+                             drawLineOnMask(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY, currentTool, brushOptions); // Usa la herramienta actual ('continuous-eraser-line') que es tratada como borrador
+                             lastContinuousLinePoint = { x: imageX, y: imageY }; // Actualizar último punto
+                             saveStateToHistory(); // Guardar después de cada segmento
+                             requestRender();
+                             // Opcional: Actualizar marcador en previewCanvas si se desea
+                             clearPreviewCanvas(); // Limpiar marcador anterior
+                             previewCtx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                             previewCtx.beginPath();
+                             previewCtx.arc(lastContinuousLinePoint.x, lastContinuousLinePoint.y, 3 / zoomLevel, 0, Math.PI * 2);
+                             previewCtx.fill();
+                         }
                          canvasOuterContainer.style.cursor = 'crosshair';
-                     } else {
-                         console.log(`Fin línea (${currentTool}) en: ${imageX.toFixed(0)}, ${imageY.toFixed(0)}`);
-                         drawLineOnMask(lineStartX, lineStartY, imageX, imageY, currentTool, brushOptions);
-                         saveStateToHistory(); requestRender(); isDrawingLine = false; clearPreviewCanvas();
-                         setActiveTool(currentTool);
-                     }
-                 } else { // Brush or Eraser tool
-                    isDrawing = true; lastX = imageX; lastY = imageY;
-                    applyMaskModification(imageX, imageY, currentTool, brushOptions);
-                    canvasOuterContainer.style.cursor = 'crosshair';
+                         break;
+
+                    case 'brush':
+                    case 'eraser':
+                    default: // Pincel o Borrador
+                         // Asegurarse de cancelar otros modos de línea si se empieza a pintar
+                         if(isDrawingLine) isDrawingLine = false;
+                         cancelContinuousLineDrawing(true); // Cancelar trazo continuo silenciosamente
+
+                         isDrawing = true; lastX = imageX; lastY = imageY;
+                         applyMaskModification(imageX, imageY, currentTool, brushOptions);
+                         // requestRender(); // Renderizar en move para más fluidez
+                         canvasOuterContainer.style.cursor = 'crosshair';
+                         break;
                  }
             }
 
-            function handleInteractionMove(e) { /* Ignore move if waiting for click */
+            function handleInteractionMove(e) {
                  if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
                  const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
                  currentMousePos = { x: imageX, y: imageY };
-                 if (isPanning) { panX = screenX - panStartX; panY = screenY - panStartY; updateTransform(); updateStatusBar(); }
-                 else if (isDrawing) { drawLineOnMask(lastX, lastY, imageX, imageY, currentTool, brushOptions); lastX = imageX; lastY = imageY; requestRender(); drawBrushPreview(imageX, imageY); }
-                 else if (isDrawingLine) { drawLinePreview(lineStartX, lineStartY, imageX, imageY); }
-                 else { drawBrushPreview(imageX, imageY); }
+
+                 if (isPanning) {
+                    panX = screenX - panStartX; panY = screenY - panStartY;
+                    updateTransform(); updateStatusBar();
+                 } else if (isDrawing) { // Moviendo con pincel/borrador normal presionado
+                    drawLineOnMask(lastX, lastY, imageX, imageY, currentTool, brushOptions);
+                    lastX = imageX; lastY = imageY; requestRender();
+                    drawBrushPreview(imageX, imageY);
+                 } else if (isDrawingLine) { // Moviendo mientras se define línea simple
+                    drawLinePreview(lineStartX, lineStartY, imageX, imageY);
+                 } else if (isDrawingContinuousLine) { // Moviendo mientras se define línea continua (solo mostramos marcador)
+                     // Por ahora, no dibujamos preview de línea al siguiente punto.
+                     // Solo aseguramos que el marcador del último punto esté visible si lo dibujamos.
+                     // drawLinePreview(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY); // Podría añadirse si se quiere
+                     clearPreviewCanvas(); // Limpiar previews anteriores
+                     if(lastContinuousLinePoint) { // Redibujar marcador último punto
+                         previewCtx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                         previewCtx.beginPath();
+                         previewCtx.arc(lastContinuousLinePoint.x, lastContinuousLinePoint.y, 3 / zoomLevel, 0, Math.PI * 2);
+                         previewCtx.fill();
+                     }
+                 } else { // Solo moviendo el cursor, mostrar preview de pincel si aplica
+                    drawBrushPreview(imageX, imageY);
+                 }
             }
 
-            function handleInteractionEnd(e) { /* No change needed here */
-                if (isPanning) { isPanning = false; canvasOuterContainer.style.cursor = getToolCursor(); }
-                else if (isDrawing) { isDrawing = false; saveStateToHistory(); clearPreviewCanvas(); drawBrushPreview(currentMousePos.x, currentMousePos.y); }
+            function handleInteractionEnd(e) {
+                if (isPanning) {
+                    isPanning = false; canvasOuterContainer.style.cursor = getToolCursor();
+                } else if (isDrawing) { // Finaliza trazo de pincel/borrador normal
+                    isDrawing = false;
+                    saveStateToHistory(); // Guardar estado al soltar
+                    clearPreviewCanvas();
+                    drawBrushPreview(currentMousePos.x, currentMousePos.y); // Mostrar preview final
+                }
+                // Para línea simple (isDrawingLine) y línea continua (isDrawingContinuousLine),
+                // la acción se completa en el segundo clic (o clics subsiguientes),
+                // no al soltar el botón.
             }
 
-             function drawLineOnMask(imgX1, imgY1, imgX2, imgY2, tool, options) { /* No change */
+             function drawLineOnMask(imgX1, imgY1, imgX2, imgY2, tool, options) {
                  if (!maskCtx) return;
-                 const isEraser = tool === 'eraser' || tool === 'eraser-line'; const size = options.size; const opacity = options.opacity;
-                 maskCtx.save(); maskCtx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
-                 maskCtx.beginPath(); maskCtx.moveTo(imgX1, imgY1); maskCtx.lineTo(imgX2, imgY2);
-                 maskCtx.lineWidth = size; maskCtx.lineCap = 'round'; maskCtx.lineJoin = 'round';
-                 maskCtx.strokeStyle = isEraser ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
-                 maskCtx.stroke(); maskCtx.restore();
+                 // Determinar si la herramienta actual debe borrar
+                 const isEraserTool = tool === 'eraser' || tool === 'eraser-line' || tool === 'continuous-eraser-line';
+                 const size = options.size; const opacity = options.opacity;
+
+                 maskCtx.save();
+                 maskCtx.globalCompositeOperation = isEraserTool ? 'destination-out' : 'source-over'; // destination-out para borrar
+                 maskCtx.beginPath();
+                 maskCtx.moveTo(imgX1, imgY1);
+                 maskCtx.lineTo(imgX2, imgY2);
+                 maskCtx.lineWidth = size; // Usar el tamaño como grosor de línea
+                 maskCtx.lineCap = 'round'; maskCtx.lineJoin = 'round';
+                 // El color no importa para destination-out, pero sí la opacidad
+                 maskCtx.strokeStyle = isEraserTool ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+                 maskCtx.stroke();
+                 maskCtx.restore();
              }
 
             function setActiveTool(tool) {
-                 // --- MODIFICATION: Cancel hole mode if changing TO another tool ---
+                 // Cancelar modos activos si se cambia de herramienta
                  if (tool !== 'hole-remover' && waitingForInnerHoleClick) {
                      cancelInnerHoleClickMode();
                  }
-                 // --- END MODIFICATION ---
+                 if (tool !== 'line' && tool !== 'eraser-line' && isDrawingLine) {
+                     isDrawingLine = false; clearPreviewCanvas(); console.log("Línea simple cancelada por cambio de herramienta.");
+                 }
+                 if (tool !== 'continuous-eraser-line' && isDrawingContinuousLine) {
+                    cancelContinuousLineDrawing(); // Usar la función helper
+                 }
 
                  currentTool = tool; console.log("Herramienta activa:", tool);
-                 // Remove active class from manual tool buttons
-                 [brushBtn, eraserBtn, lineBtn, eraserLineBtn].forEach(btn => btn.classList.remove('active-tool'));
+                 // Quitar clase activa de todos los botones de herramientas manuales
+                 [brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousEraserLineBtn].forEach(btn => btn.classList.remove('active-tool'));
 
-                 // Only add active class if it's one of the manual tool buttons
-                 if (['brush', 'eraser', 'line', 'eraser-line'].includes(tool)) {
+                 // Añadir clase activa al botón seleccionado (si es una herramienta manual)
+                  const manualTools = ['brush', 'eraser', 'line', 'eraser-line', 'continuous-eraser-line'];
+                 if (manualTools.includes(tool)) {
                     const activeBtn = document.getElementById(`${tool}-tool`);
                     if (activeBtn) activeBtn.classList.add('active-tool');
                  }
-                 // Note: active state for hole remover is handled separately by its specific class
+                 // La clase activa para 'hole-remover' se maneja por separado
 
+                 // Configurar visibilidad de opciones
                  const isBrushOrEraser = tool === 'brush' || tool === 'eraser';
-                 const isLineTool = tool === 'line' || tool === 'eraser-line';
-                 const showBrushOptions = isBrushOrEraser || isLineTool; // Show size for lines too
+                 const isAnyLineTool = tool === 'line' || tool === 'eraser-line' || tool === 'continuous-eraser-line';
+                 const showBrushOptionsPanel = isBrushOrEraser || isAnyLineTool;
 
-                 featherOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none';
-                 shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none';
-                 brushOptionsSection.style.display = showBrushOptions ? 'block' : 'none'; // Hide options if not brush/eraser/line
+                 brushOptionsSection.style.display = showBrushOptionsPanel ? 'block' : 'none';
+                 // Opciones específicas
+                 featherOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none'; // Solo para pincel/borrador
+                 shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none'; // Solo para pincel/borrador
+                 // Opacidad y Tamaño/Grosor se muestran para todos los que usan el panel
 
-                 if (isDrawingLine && !isLineTool) {
-                    isDrawingLine = false; clearPreviewCanvas(); console.log("Línea cancelada por cambio de herramienta.");
-                 }
                  canvasOuterContainer.style.cursor = getToolCursor();
                  updateStatusBar();
+                 updateToolOptionsDisplay(); // Actualizar valores mostrados
+                 clearPreviewCanvas(); // Limpiar preview al cambiar
+                 if (isDrawingContinuousLine && lastContinuousLinePoint) { // Redibujar marcador si se vuelve a la herramienta
+                     previewCtx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                     previewCtx.beginPath();
+                     previewCtx.arc(lastContinuousLinePoint.x, lastContinuousLinePoint.y, 3 / zoomLevel, 0, Math.PI * 2);
+                     previewCtx.fill();
+                 }
             }
 
-
              function getToolCursor() {
-                 if (waitingForInnerHoleClick) return 'crosshair'; // Cursor for clicking the hole
+                 if (waitingForInnerHoleClick) return 'crosshair';
                  if (isSpacePressed) return 'grab';
                  if (isPanning) return 'grabbing';
-                 if (isDrawingLine || currentTool === 'line' || currentTool === 'eraser-line') return 'crosshair';
+                 if (isDrawingLine || currentTool === 'line' || currentTool === 'eraser-line' || currentTool === 'continuous-eraser-line') return 'crosshair'; // Usar crosshair para todas las líneas y trazos
                  return 'crosshair'; // Usar crosshair para pincel/borrador también
              }
 
-            function updateToolOptionsDisplay() { /* No change */
-                brushSizeValue.textContent = brushOptions.size; brushFeatherValue.textContent = brushOptions.feather.toFixed(2); brushOpacityValue.textContent = brushOptions.opacity.toFixed(2);
-                shapeCircleBtn.classList.toggle('active-shape', brushOptions.shape === 'circle'); shapeSquareBtn.classList.toggle('active-shape', brushOptions.shape === 'square');
+            function updateToolOptionsDisplay() {
+                brushSizeValue.textContent = brushOptions.size;
+                brushFeatherValue.textContent = brushOptions.feather.toFixed(2);
+                brushOpacityValue.textContent = brushOptions.opacity.toFixed(2);
+                shapeCircleBtn.classList.toggle('active-shape', brushOptions.shape === 'circle');
+                shapeSquareBtn.classList.toggle('active-shape', brushOptions.shape === 'square');
             }
 
             // --- History & State ---
             function updateActionButtonsState() {
                  const imageLoaded = !!originalImage && !!ctx && !!maskCtx;
                  const canUndo = history.length > 1;
+                 const isEditingManually = isDrawing || isDrawingLine || isDrawingContinuousLine; // Check if any manual edit is in progress
+
                  // Standard buttons
-                 undoBtn.disabled = !canUndo || isFloodFilling || waitingForInnerHoleClick; // Disable during hole mode too
+                 undoBtn.disabled = !canUndo || isFloodFilling || waitingForInnerHoleClick || isEditingManually; // Disable if drawing line/trace
                  undoCountSpan.textContent = Math.max(0, history.length - 1);
-                 resetBtn.disabled = !imageLoaded || !canUndo || isFloodFilling || waitingForInnerHoleClick; // Disable during hole mode too
-                 exportBtn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick;
-                 copyBtn.disabled = !imageLoaded || !isClipboardWriteSupported || isFloodFilling || waitingForInnerHoleClick;
-                 pasteBtn.disabled = !isClipboardReadSupported || isFloodFilling || waitingForInnerHoleClick;
-                 // Manual tools
-                 [brushBtn, eraserBtn, lineBtn, eraserLineBtn].forEach(btn => btn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick);
-                 [brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn].forEach(control => control.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick);
+                 resetBtn.disabled = !imageLoaded || !canUndo || isFloodFilling || waitingForInnerHoleClick || isEditingManually; // Disable if drawing line/trace
+                 exportBtn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick || isEditingManually;
+                 copyBtn.disabled = !imageLoaded || !isClipboardWriteSupported || isFloodFilling || waitingForInnerHoleClick || isEditingManually;
+                 pasteBtn.disabled = !isClipboardReadSupported || isFloodFilling || waitingForInnerHoleClick || isEditingManually;
+
+                 // Manual tools buttons
+                 [brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousEraserLineBtn].forEach(btn => btn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick); // Don't disable based on isEditingManually, allow switching
+
+                 // Controls within options panel
+                 [brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn].forEach(control => control.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick || isEditingManually); // Disable sliders if drawing
+
                  // Auto tools
-                 removeEdgeBgBtn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick;
-                 removeInnerHoleBtn.disabled = !imageLoaded || isFloodFilling; // Don't disable if waitingForInnerHoleClick is true, allow cancelling
-                 edgeColorToleranceSlider.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick;
+                 removeEdgeBgBtn.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick || isEditingManually;
+                 removeInnerHoleBtn.disabled = !imageLoaded || isFloodFilling || isEditingManually; // Allow cancelling hole mode, so don't check waitingForInnerHoleClick here
+                 edgeColorToleranceSlider.disabled = !imageLoaded || isFloodFilling || waitingForInnerHoleClick || isEditingManually;
             }
 
             function checkClipboardSupport() { /* No change */
@@ -753,15 +872,15 @@
 
             function saveStateToHistory() { /* No change */
                  if (!maskCtx || !maskCanvas) return;
-                 console.log("Guardando historial...");
+                 // console.log("Guardando historial..."); // Reduce log noise
                  history.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
                  if (history.length > MAX_HISTORY + 1) { history.shift(); }
-                 console.log(`   Historial: ${history.length} estados.`);
+                 // console.log(`   Historial: ${history.length} estados.`);
                  updateActionButtonsState();
             }
 
-            function undo() { /* Check for hole mode */
-                if (history.length <= 1 || isFloodFilling || waitingForInnerHoleClick) return;
+            function undo() {
+                if (history.length <= 1 || isFloodFilling || waitingForInnerHoleClick || isDrawingLine || isDrawingContinuousLine) return; // Prevent undo while drawing lines
                 console.log("Deshaciendo..."); history.pop();
                 const previousState = history[history.length - 1];
                 maskCtx.putImageData(previousState, 0, 0); requestRender(); updateActionButtonsState();
@@ -769,18 +888,18 @@
             }
 
             // --- Zoom/Pan ---
-            function handleWheelZoom(e) { /* Prevent zoom while waiting */
-                if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
+            function handleWheelZoom(e) {
+                if (!originalImage || isFloodFilling || waitingForInnerHoleClick || isDrawingLine || isDrawingContinuousLine) return; // Prevent zoom while drawing lines
                 e.preventDefault();
                 const { screenX, screenY } = getInteractionPos(e);
                 const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
                 zoomInOut(zoomFactor, screenX, screenY);
             }
             function updateTransform() { if (canvasInnerContainer) canvasInnerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`; }
-            function updateStatusBar() { /* Updated to show hole remover status */
+            function updateStatusBar() {
                 zoomLevelSpan.textContent = Math.round(zoomLevel * 100);
                 let toolName = 'Ninguna';
-                if (waitingForInnerHoleClick) { // Show hole remover status first
+                if (waitingForInnerHoleClick) {
                     toolName = 'Eliminar Hueco (Clic)';
                 } else {
                     switch (currentTool) {
@@ -788,25 +907,50 @@
                          case 'eraser': toolName = 'Borrador'; break;
                          case 'line': toolName = 'Línea (Guardar)'; break;
                          case 'eraser-line': toolName = 'Línea (Borrar)'; break;
+                         case 'continuous-eraser-line': toolName = 'Trazo Borrador'; break; // <-- Nuevo nombre
                      }
-                    if (isDrawingLine) toolName += ' (dibujando)';
+                    if (isDrawingLine || isDrawingContinuousLine) toolName += ' (dibujando)'; // Indicate drawing state for both line types
                  }
                  currentToolSpan.textContent = toolName;
             }
-            function handleKeyDown(e) { /* Added Esc key to cancel hole mode */
-                 // Allow Escape key to cancel inner hole click mode
-                 if (e.key === 'Escape' && waitingForInnerHoleClick) {
-                    cancelInnerHoleClickMode();
-                    e.preventDefault();
-                    return;
+            function handleKeyDown(e) {
+                 // Escape Key Logic
+                 if (e.key === 'Escape') {
+                    if (waitingForInnerHoleClick) {
+                        cancelInnerHoleClickMode(); e.preventDefault(); return;
+                    } else if (isDrawingLine) { // Cancel regular line drawing
+                        isDrawingLine = false; clearPreviewCanvas(); setActiveTool(currentTool); // Reset cursor etc.
+                        console.log("Dibujo de línea cancelado (Esc)."); e.preventDefault(); return;
+                    } else if (isDrawingContinuousLine) { // Cancel continuous line drawing
+                        cancelContinuousLineDrawing(); // Use helper
+                        setActiveTool(currentTool); // Reset cursor etc.
+                         e.preventDefault(); return;
+                    }
                  }
-                 // Prevent panning while waiting
-                 if (e.key === ' ' && !isSpacePressed && !e.repeat && !waitingForInnerHoleClick) {
+
+                 // Space Key for Panning (prevent if drawing lines)
+                 if (e.key === ' ' && !isSpacePressed && !e.repeat && !waitingForInnerHoleClick && !isDrawingLine && !isDrawingContinuousLine) {
                     isSpacePressed = true; if (!isPanning) canvasOuterContainer.style.cursor = 'grab';
                  }
-                 // Allow undo even in hole mode if needed (or keep disabled via updateActionButtonsState)
+
+                 // Undo (Ctrl+Z) - Allow even if drawing? Let's block it like other actions.
                  if (e.ctrlKey && e.key === 'z' && !e.repeat) {
-                    e.preventDefault(); undo();
+                    if (!isDrawingLine && !isDrawingContinuousLine) { // Check if not drawing lines
+                         e.preventDefault(); undo();
+                    } else {
+                         console.log("Undo bloqueado mientras se dibuja línea/trazo.");
+                    }
+                 }
+
+                 // Tool Shortcuts (Example: X for Continuous Erase Line)
+                 if (!e.ctrlKey && !e.altKey && !e.metaKey && !isEditingManually && document.activeElement.tagName !== 'INPUT') { // Check focus
+                     switch(e.key.toLowerCase()) {
+                        case 'b': setActiveTool('brush'); e.preventDefault(); break;
+                        case 'e': setActiveTool('eraser'); e.preventDefault(); break;
+                        case 'l': setActiveTool(e.shiftKey ? 'eraser-line' : 'line'); e.preventDefault(); break;
+                        case 'x': setActiveTool('continuous-eraser-line'); e.preventDefault(); break; // <-- Nuevo shortcut
+                        // 'h' para hole remover? Podría ser.
+                     }
                  }
             }
             function handleKeyUp(e) { /* No change */
@@ -815,54 +959,51 @@
                      if (!isPanning) canvasOuterContainer.style.cursor = getToolCursor();
                  }
             }
-             function zoomInOut(factor, pivotX, pivotY) { /* No change */
+             function zoomInOut(factor, pivotX, pivotY) { /* No change needed specifically for new tool */
                  if (!originalImage) return; const newZoomLevel = Math.max(0.1, Math.min(zoomLevel * factor, 15));
                  if (newZoomLevel === zoomLevel) return; const dx = (pivotX - panX) * (newZoomLevel / zoomLevel - 1);
                  const dy = (pivotY - panY) * (newZoomLevel / zoomLevel - 1); panX -= dx; panY -= dy;
                  zoomLevel = newZoomLevel; updateTransform(); updateStatusBar(); clearPreviewCanvas();
-                 drawBrushPreview(currentMousePos.x, currentMousePos.y); // Don't draw if waiting
+                 // Redraw preview only if applicable tool is active
+                 if (currentTool === 'brush' || currentTool === 'eraser') {
+                     drawBrushPreview(currentMousePos.x, currentMousePos.y);
+                 } else if (isDrawingContinuousLine && lastContinuousLinePoint) { // Redraw marker
+                     previewCtx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                     previewCtx.beginPath();
+                     previewCtx.arc(lastContinuousLinePoint.x, lastContinuousLinePoint.y, 3 / zoomLevel, 0, Math.PI * 2);
+                     previewCtx.fill();
+                 }
              }
 
             // --- UI Feedback ---
             function showButtonFeedback(button, status, message = null, duration = 1500) { /* No change */
                  if (!button) return;
-                 // Clean previous status unless it's the active hole remover style we want to keep temporarily
                  if (!button.classList.contains('active-hole-remover')) {
                     button.classList.remove('success', 'error', 'working', 'cancelling');
                  } else {
-                     // If it's the active hole remover, only remove specific feedback classes
                      button.classList.remove('success', 'error');
                  }
-
                  const originalText = button.dataset.originalHtml || button.innerHTML;
                  if (!button.dataset.originalHtml) button.dataset.originalHtml = originalText;
                  const originalTitle = button.dataset.originalTitle || button.title;
                  if (!button.dataset.originalTitle) button.dataset.originalTitle = originalTitle;
-
                  const statusClass = `btn-feedback ${status}`;
-                 // Apply status class (like success/error)
                  button.classList.add(...statusClass.split(' '));
-
                  if (message) {
                       if (message.startsWith('<i class="fas ') || message.startsWith('<i class="fa ')) button.innerHTML = message;
                       else button.textContent = message;
                  }
-                 // Disable only if working or cancelling, allow clicks for success/error feedback
                  button.disabled = (status === 'working' || status === 'cancelling');
-
-                 // Clear the generic feedback timeout if it exists
                  if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout);
-
-                 // Set timeout to remove the status class and restore original state *unless* it's the hole remover button being handled specially
                  if (status !== 'working' && status !== 'cancelling' && button.id !== 'remove-inner-hole-btn') {
                       button.feedbackTimeout = setTimeout(() => {
-                          button.classList.remove('success', 'error'); // Remove specific status
-                          button.innerHTML = originalText; // Restore HTML
-                          button.title = originalTitle; // Restore title
-                          button.disabled = !originalImage; // Reset basic disabled state
-                          delete button.dataset.originalHtml; // Clean up stored data
+                          button.classList.remove('success', 'error');
+                          button.innerHTML = originalText;
+                          button.title = originalTitle;
+                          button.disabled = !originalImage;
+                          delete button.dataset.originalHtml;
                           delete button.dataset.originalTitle;
-                          updateActionButtonsState(); // Re-evaluate general state
+                          updateActionButtonsState();
                       }, duration);
                  } else if (button.id === 'remove-inner-hole-btn') {
                     // Special handling for hole remover button is done within removeInnerHoleAt
@@ -889,7 +1030,7 @@
                      a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                      showButtonFeedback(exportBtn, 'success', '<i class="fas fa-check"></i> Exportado');
                  } catch (error) { console.error("Error exportando:", error); alert(`Error al exportar: ${error.message}`); showButtonFeedback(exportBtn, 'error', '<i class="fas fa-times"></i> Error'); }
-                 finally { updateActionButtonsState(); } // Re-enable based on state
+                 finally { updateActionButtonsState(); }
             }
             async function copyImageToClipboard() { /* No change */
                  if (!originalImage || !isClipboardWriteSupported || copyBtn.disabled) return;
@@ -899,7 +1040,7 @@
                      const item = new ClipboardItem({ 'image/png': blob }); await navigator.clipboard.write([item]);
                      showButtonFeedback(copyBtn, 'success', '<i class="fas fa-check"></i> Copiado');
                  } catch (error) { console.error("Error copiando:", error); let msg = error.name === 'NotAllowedError' ? "Permiso denegado." : "Error al copiar."; alert(`No se pudo copiar: ${msg}\n${error.message}`); showButtonFeedback(copyBtn, 'error', '<i class="fas fa-times"></i> Error'); }
-                 finally { updateActionButtonsState(); } // Re-enable based on state
+                 finally { updateActionButtonsState(); }
             }
             async function handlePasteButtonClick() { /* No change */
                  if (!isClipboardReadSupported || pasteBtn.disabled) return; console.log("Intentando pegar (botón)...");
@@ -915,7 +1056,7 @@
                       if (imageFound) showButtonFeedback(pasteBtn, 'success', '<i class="fas fa-check"></i> Pegado');
                       else { console.log("No se encontró imagen."); showButtonFeedback(pasteBtn, 'error', 'No hay imagen', 1000); }
                  } catch (error) { console.error("Error pegando:", error); let msg = error.name === 'NotAllowedError' || error.message.includes("denied") ? "Permiso denegado." : "Error al pegar."; alert(`No se pudo pegar: ${msg}\n${error.message}`); showButtonFeedback(pasteBtn, 'error', '<i class="fas fa-times"></i> Error'); }
-                 finally { updateActionButtonsState(); } // Re-enable based on state
+                 finally { updateActionButtonsState(); }
             }
             function handleClipboardPaste(clipboardData) { /* No change */
                  if (!clipboardData?.items) return false; let imageFound = false;
@@ -930,16 +1071,15 @@
             function colorDistance(r1, g1, b1, r2, g2, b2) { const dr = r1 - r2; const dg = g1 - g2; const db = b1 - b2; return dr * dr + dg * dg + db * db; }
 
             // --- Flood Fill Background Removal (Edge Based) ---
-            // (floodFillMask and handleRemoveBackgroundByFloodFill remain largely the same, focused on edge detection)
-            function floodFillMask(originalData, maskData, startX, startY, toleranceSq, visited) {
+            function floodFillMask(originalData, maskData, startX, startY, toleranceSq, visited) { /* No changes needed here */
                 const width = originalData.width; const height = originalData.height;
                 const originalPixels = originalData.data; const maskPixels = maskData.data;
-                if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return false; // Return false if already visited or out of bounds
+                if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return false;
                 const startIndex = (startY * width + startX) * 4;
                 const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
-                if (originalPixels[startIndex + 3] < 128) { visited[startY][startX] = true; return false; } // Ignore if the start is transparent
+                if (originalPixels[startIndex + 3] < 128) { visited[startY][startX] = true; return false; }
 
-                const queue = [[startX, startY]]; visited[startY][startX] = true; maskPixels[startIndex + 3] = 0; // Erase starting point
+                const queue = [[startX, startY]]; visited[startY][startX] = true; maskPixels[startIndex + 3] = 0;
                 let iterations = 0; const maxIterations = width * height * 1.5;
 
                 while (queue.length > 0) {
@@ -957,11 +1097,11 @@
                     for (const [nx, ny] of neighbors) {
                         if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
                              const nIndex = (ny * width + nx) * 4;
-                             if (originalPixels[nIndex + 3] < 128) { visited[ny][nx] = true; continue; } // Ignore transparent neighbors
+                             if (originalPixels[nIndex + 3] < 128) { visited[ny][nx] = true; continue; }
                              const nR = originalPixels[nIndex]; const nG = originalPixels[nIndex + 1]; const nB = originalPixels[nIndex + 2];
                              const distSq = colorDistance(startR, startG, startB, nR, nG, nB);
                              if (distSq <= toleranceSq) {
-                                 visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; // Erase neighbor
+                                 visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0;
                              }
                         }
                     }
@@ -969,20 +1109,23 @@
                 return false; // Completed without cancelling
             }
 
-            async function handleRemoveBackgroundByFloodFill() { // Edge-based removal
+            async function handleRemoveBackgroundByFloodFill() { /* Added cancelContinuousLineDrawing */
                 console.log(`%c>>> handleRemoveBackgroundByFloodFill EJECUTADO - ${new Date().toLocaleTimeString()}`, 'color: blue; font-weight: bold; font-size: 1.2em;');
-                 if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache) { // Check for cache too
+                 if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache) {
                      console.warn("Flood Fill (edge) cancelado: Faltan elementos o cache de imagen original.");
                      alert("Error: No se pueden leer los píxeles originales para el fondo automático.");
                      return;
                  }
                  if (isFloodFilling) { console.warn("Flood Fill (edge) ya en proceso."); return; }
+                 if (isDrawingLine || isDrawingContinuousLine) { console.warn("Flood Fill (edge) bloqueado: Edición manual en curso."); return;} // Block if drawing
+
+                cancelContinuousLineDrawing(true); // Ensure cancelled
 
                 isFloodFilling = true; cancelFloodFillRequest = false;
                 updateActionButtonsState();
                 showButtonFeedback(removeEdgeBgBtn, 'working', 'Analizando...');
                 showProcessingOverlay('Analizando bordes...');
-                await new Promise(resolve => setTimeout(resolve, 50)); // UI update delay
+                await new Promise(resolve => setTimeout(resolve, 50));
 
                 try {
                     if (cancelFloodFillRequest) throw new Error("Cancelled");
@@ -991,7 +1134,6 @@
                     const toleranceSq = tolerance * tolerance * 3;
                     console.log(`   Tolerancia (edge): ${tolerance}, Dist^2 <= ${toleranceSq.toFixed(0)}`);
 
-                    // Use the cached original image data
                     const originalData = originalImageDataCache;
                     const maskImageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
                     const width = maskImageData.width; const height = maskImageData.height;
@@ -1000,7 +1142,6 @@
                     const startTime = performance.now();
                     let cancelledInsideLoop = false;
 
-                    // Edge loops
                     for (let x = 0; x < width; x++) {
                          if (cancelFloodFillRequest) { cancelledInsideLoop = true; break; }
                          if (floodFillMask(originalData, maskImageData, x, 0, toleranceSq, visited)) { cancelledInsideLoop = true; break; }
@@ -1039,7 +1180,6 @@
                      console.log("   Finally Flood Fill (Edge): Limpiando estado.");
                     isFloodFilling = false; cancelFloodFillRequest = false;
                     hideProcessingOverlay();
-                     // Ensure button state is reset correctly if not showing final feedback
                      if (!removeEdgeBgBtn.classList.contains('success') && !removeEdgeBgBtn.classList.contains('error')) {
                          removeEdgeBgBtn.classList.remove('working', 'cancelling');
                          if (removeEdgeBgBtn.dataset.originalHtml) removeEdgeBgBtn.innerHTML = removeEdgeBgBtn.dataset.originalHtml;
@@ -1050,63 +1190,56 @@
             }
 
             // --- NEW: Inner Hole Removal Logic ---
-            function activateInnerHoleClickMode() {
-                if (!originalImage || isFloodFilling || waitingForInnerHoleClick) return;
+            function activateInnerHoleClickMode() { /* Added cancelContinuousLineDrawing */
+                if (!originalImage || isFloodFilling || waitingForInnerHoleClick || isDrawingLine || isDrawingContinuousLine) return; // Block if drawing lines
                 console.log("Activando modo 'Eliminar Hueco Interno' (Pegajoso)");
-                // Deactivate other tools visually
-                setActiveTool('hole-remover'); // Set currentTool to specific identifier
+                cancelContinuousLineDrawing(true); // Ensure cancelled
+                setActiveTool('hole-remover');
                 waitingForInnerHoleClick = true;
-                removeInnerHoleBtn.classList.add('active-hole-remover'); // Visual feedback on button
-                // Clear any previous feedback timeout for this button
+                removeInnerHoleBtn.classList.add('active-hole-remover');
                 if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
-                // Ensure original HTML is stored if not already
                 if (!removeInnerHoleBtn.dataset.originalHtml) removeInnerHoleBtn.dataset.originalHtml = removeInnerHoleBtn.innerHTML;
                 if (!removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.dataset.originalTitle = removeInnerHoleBtn.title;
 
                 removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
-                canvasOuterContainer.style.cursor = 'crosshair'; // Indicate click mode
+                canvasOuterContainer.style.cursor = 'crosshair';
                 updateStatusBar();
-                updateActionButtonsState(); // Disable other buttons
-                clearPreviewCanvas(); // Clear any brush preview
+                updateActionButtonsState();
+                clearPreviewCanvas();
             }
 
-            function cancelInnerHoleClickMode() {
+            function cancelInnerHoleClickMode() { /* No change */
                 if (!waitingForInnerHoleClick) return;
                 console.log("Cancelando modo 'Eliminar Hueco Interno'");
                 waitingForInnerHoleClick = false;
-                removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error'); // Remove active and feedback classes
-                // Clear any pending feedback timeout
+                removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error');
                 if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
-                // Restore original button text/icon using the stored data-attribute
                 if (removeInnerHoleBtn.dataset.originalHtml) {
                     removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml;
-                } else { // Fallback
+                } else {
                      removeInnerHoleBtn.innerHTML = '<i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno';
                 }
-                 // Restore default tool or previous tool if tracked
-                setActiveTool('eraser'); // Setting to eraser is simpler
+                setActiveTool('eraser');
                 updateStatusBar();
-                updateActionButtonsState(); // Re-enable buttons
+                updateActionButtonsState();
             }
 
-            function removeInnerHoleAt(startX, startY) {
+            function removeInnerHoleAt(startX, startY) { /* No change needed */
                 console.log(`%c>>> removeInnerHoleAt (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: purple; font-weight: bold;');
                  if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache) {
                      console.warn("Eliminar Hueco cancelado: Faltan elementos o cache.");
                      alert("Error: No se pueden leer los datos de píxeles originales o la máscara.");
-                      // --- MODIFICATION: Reset button text even on early exit ---
                       if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
-                      removeInnerHoleBtn.classList.add('error'); // Add error class temporarily
+                      removeInnerHoleBtn.classList.add('error');
                       removeInnerHoleBtn.innerHTML = '<i class="fas fa-times"></i> Error';
                       holeRemoverFeedbackTimeout = setTimeout(() => {
-                          if (waitingForInnerHoleClick) { // Check if still active
+                          if (waitingForInnerHoleClick) {
                                removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
-                               removeInnerHoleBtn.classList.remove('error'); // Ensure error class is removed
+                               removeInnerHoleBtn.classList.remove('error');
                           } else {
-                              cancelInnerHoleClickMode(); // Fully cancel if mode changed during timeout
+                              cancelInnerHoleClickMode();
                           }
-                      }, 1000); // Reset after 1 second
-                      // --- END MODIFICATION ---
+                      }, 1000);
                      return;
                  }
 
@@ -1114,14 +1247,13 @@
                  startX = Math.floor(startX); startY = Math.floor(startY);
                  if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
                      console.log("   Clic fuera de los límites.");
-                     // Optionally provide feedback that click was outside
                      return;
                  }
 
                  let pixelsChanged = 0;
                  let success = false;
                  let message = '';
-                 let statusClass = 'error'; // Default to error for feedback
+                 let statusClass = 'error';
 
                  try {
                     const maskImageData = maskCtx.getImageData(0, 0, width, height);
@@ -1134,7 +1266,7 @@
                     if (maskPixels[startIndex + 3] < 128) {
                         console.log("   El área clicada ya es transparente.");
                         message = 'Ya Transparente';
-                        statusClass = 'error'; // Keep as error/warning feedback
+                        statusClass = 'error';
                     } else {
                         const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
                         console.log(`   Color original en clic: R=${startR} G=${startG} B=${startB}, Tolerancia^2: ${toleranceSq}`);
@@ -1149,13 +1281,13 @@
                             for (const [nx, ny] of neighbors) {
                                 if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
                                     const nIndex = (ny * width + nx) * 4;
-                                    if (maskPixels[nIndex + 3] > 128) { // Check MASK opacity
+                                    if (maskPixels[nIndex + 3] > 128) {
                                         const nR = originalPixels[nIndex]; const nG = originalPixels[nIndex + 1]; const nB = originalPixels[nIndex + 2];
-                                        const distSq = colorDistance(startR, startG, startB, nR, nG, nB); // Check ORIGINAL color
+                                        const distSq = colorDistance(startR, startG, startB, nR, nG, nB);
                                         if (distSq <= toleranceSq) {
-                                            visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsChanged++; // ERASE MASK
+                                            visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsChanged++;
                                         }
-                                    } else { visited[ny][nx] = true; } // Mark visited if already transparent in mask
+                                    } else { visited[ny][nx] = true; }
                                 }
                             }
                         }
@@ -1164,7 +1296,7 @@
                             maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender();
                             message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true;
                         } else {
-                            message = 'No Cambios'; statusClass = 'error'; success = false; // Should not happen if start pixel was opaque
+                            message = 'No Cambios'; statusClass = 'error'; success = false;
                         }
                     }
                  } catch (error) {
@@ -1172,30 +1304,20 @@
                     alert(`Error al eliminar hueco: ${error.message}`);
                     message = '<i class="fas fa-times"></i> Error'; statusClass = 'error'; success = false;
                  } finally {
-                     // --- MODIFICATION: Handle button feedback and reset ---
-                     const feedbackDuration = 1000; // How long to show success/error message
-
-                     // Clear previous specific timeout if any
+                     const feedbackDuration = 1000;
                      if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout);
+                     removeInnerHoleBtn.classList.remove('success', 'error');
+                     removeInnerHoleBtn.classList.add(statusClass);
+                     removeInnerHoleBtn.innerHTML = message;
 
-                     // Apply feedback styles and message
-                     removeInnerHoleBtn.classList.remove('success', 'error'); // Clear previous feedback first
-                     removeInnerHoleBtn.classList.add(statusClass); // Add current status class
-                     removeInnerHoleBtn.innerHTML = message; // Show message
-
-                     // Set timeout to revert text back to "active" state
                      holeRemoverFeedbackTimeout = setTimeout(() => {
-                         removeInnerHoleBtn.classList.remove('success', 'error'); // Remove status class
-                         if (waitingForInnerHoleClick) { // Check if mode is *still* active
+                         removeInnerHoleBtn.classList.remove('success', 'error');
+                         if (waitingForInnerHoleClick) {
                               removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
                          } else {
-                             // If mode got cancelled during the timeout, cancelInnerHoleClickMode should have reset the text already,
-                             // but we can double-check or call it again for safety.
-                             // console.log("Hole mode cancelled during feedback timeout.");
-                             // cancelInnerHoleClickMode(); // Optionally call again
+                             // cancelInnerHoleClickMode(); // Ya debería estar cancelado si no waiting...
                          }
                      }, feedbackDuration);
-                     // --- END MODIFICATION ---
                  }
             }
 
