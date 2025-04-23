@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminador de Fondos (vSimple + Atajo 'C') - XocoStudio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- Estilos CSS (Optimizados) --- */
+        body { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+        .checkerboard-bg { background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
+        .tool-btn.active-tool { background-color: #d1d5db; /* gray-300 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
+        .tool-btn.active-hole-remover { background-color: #fde047 !important; /* yellow-300 */ color: #713f12 !important; /* yellow-800 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #ca8a04; /* yellow-600 */}
+        .brush-shape.active-shape { border-color: #3b82f6; /* blue-500 */ border-width: 2px; }
+        #canvas-outer-container { width: 100%; height: 100%; overflow: hidden; position: relative; }
+        #canvas-inner-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+        #image-canvas, #preview-canvas { display: block; position: absolute; top: 0; left: 0; max-width: none; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+        #preview-canvas { pointer-events: none; z-index: 1;}
+        #image-canvas { z-index: 0; }
+        main { height: calc(100vh - 64px - 32px); }
+        .fa-line-eraser::before { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; }
+        .fa-line-eraser::after { content: ""; position: absolute; left: 15%; top: 50%; width: 70%; height: 2px; background-color: currentColor; transform: translateY(-50%) rotate(0deg); opacity: 0.6; z-index: 0; }
+        .tool-btn .fa-line-eraser { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+        #eraser-line-tool i { font-size: 0.9em; }
+        .btn-feedback { transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out; }
+        .btn-feedback.success { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .btn-feedback.error { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .btn-feedback.working { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; cursor: wait; }
+        .btn-feedback.cancelling { background-color: #f97316 !important; color: white !important; border-color: #ea580c !important; cursor: default; }
+        .processing-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: none; }
+        .processing-overlay i { margin-bottom: 10px; }
+        .processing-overlay p { margin-top: 0px; font-size: 1.1rem; }
+         .fa-continuous-eraser-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+         .fa-continuous-eraser-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; }
+         .fa-continuous-eraser-line::after { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #ef4444; }
+         #continuous-eraser-line-tool i { font-size: 1em; }
+         .fa-continuous-keep-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+         .fa-continuous-keep-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; }
+         .fa-continuous-keep-line::after { content: "\f55d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #22c55e; }
+         #continuous-keep-line-tool i { font-size: 1em; }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen overflow-hidden">
+
+    <header class="bg-white shadow-md p-4 flex-shrink-0 flex items-center">
+        <a href="https://xocostudio.com/" target="_blank" rel="noopener noreferrer" class="mr-4 flex-shrink-0">
+             <img src="https://xocostudio.com/assets/images/xocostudio-354x128.png" alt="XocoStudio Logo" class="h-8">
+        </a>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Eliminador de Fondos de Imágenes</h1>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row p-4 gap-4">
+        <!-- Panel de Controles -->
+        <aside class="w-full md:w-72 bg-white p-4 rounded-lg shadow space-y-6 flex-shrink-0 overflow-y-auto">
+            <!-- Carga -->
+            <div id="upload-section">
+                 <h2 class="text-lg font-semibold mb-2">1. Cargar Imagen</h2>
+                 <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                    <p class="text-gray-600">Arrastra y suelta</p>
+                    <p class="text-sm text-gray-500 my-2">o</p>
+                    <div class="flex flex-col items-center space-y-2">
+                        <input type="file" id="file-input" accept="image/*" class="hidden">
+                        <button id="upload-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded btn-feedback">
+                            <i class="fas fa-upload mr-1"></i> Seleccionar Archivo
+                        </button>
+                        <button id="paste-btn" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Pegar imagen del portapapeles (Requiere permisos)">
+                             <i class="fas fa-paste mr-1"></i> Pegar (Ctrl+V)
+                        </button>
+                    </div>
+                     <p id="paste-support-warning" class="text-xs text-red-600 mt-2 hidden">Pegar desde el portapapeles no está soportado o permitido.</p>
+                 </div>
+                 <p id="filename-display" class="text-xs text-gray-600 mt-2 truncate"></p>
+            </div>
+
+            <!-- Herramientas -->
+            <div id="tools-section" class="space-y-4 hidden pt-4 border-t">
+                <h2 class="text-lg font-semibold mb-2">2. Herramientas</h2>
+
+                 <!-- Auto -->
+                 <div class="mb-4 space-y-2">
+                    <button id="remove-edge-bg-btn" class="w-full bg-cyan-600 hover:bg-cyan-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar fondo basado en el color de los bordes. Haz clic de nuevo para intentar cancelar.">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i> Fondo Automático
+                    </button>
+                    <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Activa/Desactiva el modo 'Eliminar Hueco'. Haz clic en un 'hueco' (ej: interior de 'o') para eliminarlo según su color original. Usa la tolerancia de abajo. Pulsa Esc para cancelar.">
+                        <i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno
+                    </button>
+                    <div class="mt-2">
+                         <label for="edge-color-tolerance" class="block text-sm font-medium text-gray-700">Tolerancia (<span id="edge-color-tolerance-value">30</span>):</label>
+                         <input type="range" id="edge-color-tolerance" min="1" max="150" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled>
+                         <p class="text-xs text-gray-500 mt-1">Detecta más colores como fondo/hueco.</p>
+                     </div>
+                </div>
+
+                <!-- Manual -->
+                <div class="border-t pt-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Ajuste manual:</p>
+                    <div class="flex space-x-1 flex-wrap gap-y-1">
+                        <button id="brush-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Pincel Conservar (B)" disabled> <i class="fas fa-paint-brush fa-fw"></i> </button>
+                        <button id="eraser-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Borrador Eliminar (E)" disabled> <i class="fas fa-eraser fa-fw"></i> </button>
+                        <button id="line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Conservar (L) - Clic inicio, Clic fin" disabled> <i class="fas fa-minus fa-fw"></i> </button>
+                        <button id="eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Borrador (Shift+L) - Clic inicio, Clic fin" disabled> <i class="fa-line-eraser"></i> </button>
+                        <button id="continuous-keep-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Trazo Conservar Continuo (C) - Clic, Clic, Clic... (Esc para cancelar)" disabled>
+                             <i class="fa-continuous-keep-line"></i>
+                        </button>
+                        <button id="continuous-eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Trazo Borrador Continuo (X) - Clic, Clic, Clic... (Esc para cancelar)" disabled>
+                             <i class="fa-continuous-eraser-line"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Opciones -->
+                <div id="brush-options-section" class="space-y-3">
+                    <div><label for="brush-size" class="block text-sm font-medium text-gray-700">Tamaño / Grosor: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                    <div id="feather-option"><label for="brush-feather" class="block text-sm font-medium text-gray-700">Difuminado: <span id="brush-feather-value">0.10</span></label><input type="range" id="brush-feather" min="0" max="1" step="0.05" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                    <div><label for="brush-opacity" class="block text-sm font-medium text-gray-700">Opacidad: <span id="brush-opacity-value">1.00</span></label><input type="range" id="brush-opacity" min="0.05" max="1" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                    <div id="shape-option"><label class="block text-sm font-medium text-gray-700">Forma:</label><div class="flex space-x-2 mt-1"><button id="brush-shape-circle" class="brush-shape p-1 border rounded-full w-6 h-6 bg-gray-700 disabled:opacity-50" title="Circular" disabled></button><button id="brush-shape-square" class="brush-shape p-1 border rounded w-6 h-6 bg-gray-700 disabled:opacity-50" title="Cuadrado" disabled></button></div></div>
+                </div>
+                <!-- Acciones -->
+                <div class="flex space-x-2 pt-4 border-t">
+                    <button id="undo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)" disabled> <i class="fas fa-undo"></i> (<span id="undo-count">0</span>) </button>
+                    <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Resetear Máscara" disabled> <i class="fas fa-trash-alt"></i> Reset </button>
+                </div>
+            </div>
+
+            <!-- Exportar / Copiar -->
+             <div id="export-section" class="hidden pt-4 border-t space-y-2">
+                 <h2 class="text-lg font-semibold mb-2">3. Guardar / Copiar</h2>
+                 <button id="export-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed btn-feedback" disabled><i class="fas fa-download mr-1"></i> Exportar PNG</button>
+                 <button id="copy-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed btn-feedback" disabled><i class="fas fa-copy mr-1"></i> Copiar Imagen</button>
+                 <p id="clipboard-support-warning" class="text-xs text-red-600 text-center hidden">La copia al portapapeles no está soportada o permitida.</p>
+             </div>
+        </aside>
+
+        <!-- Área de Trabajo -->
+        <section class="flex-grow bg-gray-300 rounded-lg shadow overflow-hidden relative checkerboard-bg">
+            <div id="canvas-outer-container">
+                <div id="canvas-inner-container">
+                    <canvas id="image-canvas" class="hidden"></canvas>
+                    <canvas id="preview-canvas" class="hidden"></canvas>
+                </div>
+                <p id="canvas-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">Carga una imagen para empezar</p>
+            </div>
+            <div id="loading-spinner" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden z-50 pointer-events-none">
+                <i class="fas fa-spinner fa-spin fa-3x text-blue-500"></i>
+                <p class="text-lg font-semibold ml-3">Cargando...</p>
+            </div>
+            <div id="processing-overlay" class="processing-overlay hidden">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p id="processing-status-text">Procesando...</p>
+            </div>
+            <div id="status-bar" class="absolute bottom-0 left-0 bg-black bg-opacity-60 text-white text-xs p-1 rounded-tr z-10 pointer-events-none">Zoom: <span id="zoom-level">100</span>% | Herramienta: <span id="current-tool-status">Ninguna</span> | Rueda=Zoom, Espacio+Arrastrar=Mover</div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Cargado - XocoStudio Background Remover (vSimple + Atajo 'C' + Previews OK)");
+
+            // --- DOM Elements ---
+            const dropZone = document.getElementById('drop-zone'); const fileInput = document.getElementById('file-input'); const uploadBtn = document.getElementById('upload-btn'); const pasteBtn = document.getElementById('paste-btn'); const pasteSupportWarning = document.getElementById('paste-support-warning'); const filenameDisplay = document.getElementById('filename-display'); const canvasOuterContainer = document.getElementById('canvas-outer-container'); const canvasInnerContainer = document.getElementById('canvas-inner-container'); const canvas = document.getElementById('image-canvas'); const previewCanvas = document.getElementById('preview-canvas'); const canvasPlaceholder = document.getElementById('canvas-placeholder'); const loadingSpinner = document.getElementById('loading-spinner'); const toolsSection = document.getElementById('tools-section'); const exportSection = document.getElementById('export-section'); const brushBtn = document.getElementById('brush-tool'); const eraserBtn = document.getElementById('eraser-tool'); const lineBtn = document.getElementById('line-tool'); const eraserLineBtn = document.getElementById('eraser-line-tool'); const continuousKeepLineBtn = document.getElementById('continuous-keep-line-tool'); const continuousEraserLineBtn = document.getElementById('continuous-eraser-line-tool'); const brushOptionsSection = document.getElementById('brush-options-section'); const featherOptionDiv = document.getElementById('feather-option'); const shapeOptionDiv = document.getElementById('shape-option'); const brushSizeSlider = document.getElementById('brush-size'); const brushSizeValue = document.getElementById('brush-size-value'); const brushFeatherSlider = document.getElementById('brush-feather'); const brushFeatherValue = document.getElementById('brush-feather-value'); const brushOpacitySlider = document.getElementById('brush-opacity'); const brushOpacityValue = document.getElementById('brush-opacity-value'); const shapeCircleBtn = document.getElementById('brush-shape-circle'); const shapeSquareBtn = document.getElementById('brush-shape-square'); const undoBtn = document.getElementById('undo-btn'); const undoCountSpan = document.getElementById('undo-count'); const resetBtn = document.getElementById('reset-btn'); const exportBtn = document.getElementById('export-btn'); const copyBtn = document.getElementById('copy-btn'); const clipboardSupportWarning = document.getElementById('clipboard-support-warning'); const zoomLevelSpan = document.getElementById('zoom-level'); const currentToolSpan = document.getElementById('current-tool-status'); const processingOverlay = document.getElementById('processing-overlay'); const processingStatusText = document.getElementById('processing-status-text'); const removeEdgeBgBtn = document.getElementById('remove-edge-bg-btn'); const removeInnerHoleBtn = document.getElementById('remove-inner-hole-btn'); const edgeColorToleranceSlider = document.getElementById('edge-color-tolerance'); const edgeColorToleranceValueSpan = document.getElementById('edge-color-tolerance-value');
+
+            // --- State Variables ---
+            let ctx = null; let previewCtx = null; let originalImage = null; let originalImageDataCache = null; let imageFilename = 'imagen'; let maskCanvas = null; let maskCtx = null; let isDrawing = false; let lastX = 0, lastY = 0; let history = []; const MAX_HISTORY = 30; let currentTool = 'eraser'; let brushOptions = { size: 50, feather: 0.1, opacity: 1.0, shape: 'circle' }; let zoomLevel = 1.0; let panX = 0, panY = 0; let isPanning = false; let panStartX = 0, panStartY = 0; let isSpacePressed = false; let isDrawingLine = false; let lineStartX = 0, lineStartY = 0; let isDrawingContinuousLine = false; let lastContinuousLinePoint = null; let currentMousePos = { x: 0, y: 0 }; let isClipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.write); let isClipboardReadSupported = !!(navigator.clipboard && navigator.clipboard.read); let isFloodFilling = false; let cancelFloodFillRequest = false; let waitingForInnerHoleClick = false; let holeRemoverFeedbackTimeout = null;
+
+            // --- Performance Throttling ---
+            let lastRenderTime = 0; const RENDER_THROTTLE = 16;
+
+            // --- Verification ---
+            if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn || !continuousKeepLineBtn || !continuousEraserLineBtn) { console.error("¡ERROR CRÍTICO! No se encontraron uno o más elementos esenciales del DOM. Verifica los IDs."); alert("Error: La aplicación no pudo iniciarse correctamente."); return; }
+            console.log("Elementos DOM principales OK.");
+
+            // --- Initialization ---
+            setActiveTool('eraser'); updateToolOptionsDisplay(); updateActionButtonsState(); setupImageLoadingListeners(); setupInteractionListeners(); setupToolControlListeners(); checkClipboardSupport(); console.log("Inicialización completada.");
+
+            // --- Helper Function to Cancel Continuous Line ---
+            function cancelContinuousLineDrawing(silent = false) { if (isDrawingContinuousLine) { if (!silent) console.log("Cancelando trazo continuo."); isDrawingContinuousLine = false; lastContinuousLinePoint = null; clearPreviewCanvas(); updateStatusBar(); canvasOuterContainer.style.cursor = getToolCursor(); updateActionButtonsState(); } }
+
+            // --- Setup Functions ---
+            function setupImageLoadingListeners() { console.log("Configurando listeners de carga..."); dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); }); dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); }); dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); const file = e.dataTransfer?.files?.[0]; if (file?.type.startsWith('image/')) { handleFile(file); } else if (file) { alert('Por favor, suelta un archivo de imagen válido.'); } }); uploadBtn.addEventListener('click', () => fileInput.click()); pasteBtn.addEventListener('click', handlePasteButtonClick); fileInput.addEventListener('change', (e) => { const file = e.target.files?.[0]; if (file?.type.startsWith('image/')) { handleFile(file); e.target.value = null; } else if (file) { alert('Por favor, selecciona un archivo de imagen válido.'); } }); window.addEventListener('paste', (e) => { const activeElement = document.activeElement; if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable) return; if (handleClipboardPaste(e.clipboardData)) e.preventDefault(); }); console.log("Listeners de carga añadidos."); }
+            function setupInteractionListeners() { window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp); canvasOuterContainer.addEventListener('mousedown', handleInteractionStart); canvasOuterContainer.addEventListener('mousemove', handleInteractionMove); window.addEventListener('mouseup', handleInteractionEnd); canvasOuterContainer.addEventListener('touchstart', (e) => handleInteractionStart(e.touches[0]), { passive: false }); canvasOuterContainer.addEventListener('touchmove', (e) => handleInteractionMove(e.touches[0]), { passive: false }); window.addEventListener('touchend', (e) => handleInteractionEnd(e.changedTouches[0])); window.addEventListener('touchcancel', (e) => handleInteractionEnd(e.changedTouches[0])); canvasOuterContainer.addEventListener('wheel', handleWheelZoom, { passive: false }); canvasOuterContainer.addEventListener('mouseleave', () => { if (!isDrawingLine && !isDrawingContinuousLine) { clearPreviewCanvas(); } }); }
+            function setupToolControlListeners() { console.log("Configurando listeners de herramientas..."); brushBtn.addEventListener('click', () => setActiveTool('brush')); eraserBtn.addEventListener('click', () => setActiveTool('eraser')); lineBtn.addEventListener('click', () => setActiveTool('line')); eraserLineBtn.addEventListener('click', () => setActiveTool('eraser-line')); continuousKeepLineBtn.addEventListener('click', () => setActiveTool('continuous-keep-line')); continuousEraserLineBtn.addEventListener('click', () => setActiveTool('continuous-eraser-line')); brushSizeSlider.addEventListener('input', (e) => { brushOptions.size = parseInt(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); }); brushFeatherSlider.addEventListener('input', (e) => { brushOptions.feather = parseFloat(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); }); brushOpacitySlider.addEventListener('input', (e) => { brushOptions.opacity = parseFloat(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); }); shapeCircleBtn.addEventListener('click', () => { brushOptions.shape = 'circle'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); }); shapeSquareBtn.addEventListener('click', () => { brushOptions.shape = 'square'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); }); undoBtn.addEventListener('click', undo); resetBtn.addEventListener('click', () => { if (!originalImage || history.length <= 1) return; if (confirm('¿Resetear todas las ediciones? Esta acción no se puede deshacer.')) { if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); resetMask(); } }); exportBtn.addEventListener('click', exportImage); copyBtn.addEventListener('click', copyImageToClipboard); edgeColorToleranceSlider.addEventListener('input', (e) => edgeColorToleranceValueSpan.textContent = e.target.value); removeEdgeBgBtn.addEventListener('click', () => { if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); if (isFloodFilling) { console.log("%cSolicitando cancelación de Flood Fill...", 'color: orange; font-weight: bold;'); cancelFloodFillRequest = true; processingStatusText.textContent = "Cancelando..."; showButtonFeedback(removeEdgeBgBtn, 'cancelling', 'Cancelando...', 60000); } else { handleRemoveBackgroundByFloodFill(); } }); removeInnerHoleBtn.addEventListener('click', () => { if (isFloodFilling) return; cancelContinuousLineDrawing(true); if (waitingForInnerHoleClick) { cancelInnerHoleClickMode(); } else { activateInnerHoleClickMode(); } }); console.log("Listeners de herramientas añadidos."); }
+
+            // --- Core Logic ---
+            function handleFile(file) { console.log('>>> handleFile:', file?.name); if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); if (!file?.type?.startsWith('image/')) { alert('Archivo no válido. Selecciona una imagen.'); console.error('Tipo inválido:', file?.type); return; } const reader = new FileReader(); reader.onloadstart = () => { console.log('   reader.onloadstart'); showLoadingState(file.name); } ; reader.onload = (e) => { console.log('   reader.onload'); if (!e.target?.result) { handleLoadingError(file.name, 'Error al leer.'); return; } originalImage = new Image(); originalImage.onload = () => { console.log(`      originalImage.onload OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`); if (originalImage.naturalWidth === 0 || originalImage.naturalHeight === 0) { handleLoadingError(file.name, 'Dimensiones inválidas (0x0).'); originalImage = null; return; } initializeEditor(file.name, originalImage); }; originalImage.onerror = (err) => { console.error('originalImage.onerror:', err); handleLoadingError(file.name, 'Error al decodificar. ¿Formato soportado?'); originalImage = null; }; originalImage.src = e.target.result; }; reader.onerror = (err) => { console.error('reader.onerror:', err); handleLoadingError(file.name, 'Error de lectura.'); }; try { reader.readAsDataURL(file); } catch (error) { console.error("Error readAsDataURL:", error); handleLoadingError(file.name, 'Error iniciando lectura.'); } }
+            function showLoadingState(fileName) { console.log("Mostrando carga:", fileName); if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); loadingSpinner.classList.remove('hidden'); canvasPlaceholder.classList.add('hidden'); filenameDisplay.textContent = `Cargando: ${fileName}...`; toolsSection.classList.add('hidden'); exportSection.classList.add('hidden'); canvas.classList.add('hidden'); previewCanvas.classList.add('hidden'); originalImage = null; originalImageDataCache = null; ctx = previewCtx = maskCtx = null; history = []; updateActionButtonsState(); }
+            function handleLoadingError(fileName, message) { console.error(`Error cargando ${fileName || 'imagen'}: ${message}`); if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); alert(`Error al cargar "${fileName || ''}":\n${message}`); loadingSpinner.classList.add('hidden'); canvasPlaceholder.classList.remove('hidden'); filenameDisplay.textContent = `Error al cargar`; originalImage = null; originalImageDataCache = null; ctx = previewCtx = maskCtx = null; history = []; updateActionButtonsState(); }
+            function initializeEditor(fileName, loadedImage) { console.log(">>> initializeEditor:", fileName); if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); if (!loadedImage || !loadedImage.naturalWidth || !loadedImage.naturalHeight) { handleLoadingError(fileName, "Datos de imagen inválidos."); return; } imageFilename = fileName.replace(/\.[^/.]+$/, "") || 'imagen_editada'; filenameDisplay.textContent = `Editando: ${fileName} (${loadedImage.naturalWidth}x${loadedImage.naturalHeight})`; try { ctx = canvas.getContext('2d', { willReadFrequently: false }); previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true }); if (!ctx || !previewCtx) throw new Error("getContext devolvió null."); console.log("   Contextos ctx y previewCtx OK."); } catch (e) { console.error("¡ERROR FATAL obteniendo contextos principales!:", e); handleLoadingError(fileName, "Error interno: No se pudo crear contexto gráfico."); return; } if (!setupCanvases(loadedImage)) { handleLoadingError(fileName, "Error configurando canvas."); return; } cacheOriginalImageData(); resetMask(); centerAndFitImage(); requestRender(); toolsSection.classList.remove('hidden'); exportSection.classList.remove('hidden'); canvas.classList.remove('hidden'); previewCanvas.classList.remove('hidden'); loadingSpinner.classList.add('hidden'); canvasPlaceholder.classList.add('hidden'); setActiveTool(currentTool); updateActionButtonsState(); console.log("<<< initializeEditor completado."); }
+            function setupCanvases(img) { console.log(">>> setupCanvases"); if (!img?.naturalWidth || !img?.naturalHeight) { console.error("   Imagen inválida."); return false; } if (!canvas || !previewCanvas || !canvasInnerContainer) { console.error("   Faltan elementos canvas."); return false; } const w = img.naturalWidth; const h = img.naturalHeight; canvas.width = w; canvas.height = h; previewCanvas.width = w; previewCanvas.height = h; canvasInnerContainer.style.width = `${w}px`; canvasInnerContainer.style.height = `${h}px`; try { maskCanvas = document.createElement('canvas'); maskCanvas.width = w; maskCanvas.height = h; maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true }); if (!maskCtx) throw new Error("maskCtx es null."); console.log("   Contexto maskCtx OK."); } catch (e) { alert("Error fatal: No se pudo crear canvas interno para máscara."); console.error("   Error creando maskCtx:", e); maskCanvas = maskCtx = null; return false; } console.log(`   Canvases configurados a ${w}x${h}`); return true; }
+            function cacheOriginalImageData() { if (!originalImage || !canvas || !maskCanvas) { originalImageDataCache = null; console.warn("No se pudo cachear ImageData original: faltan elementos."); return; } console.log("Cacheando ImageData original..."); const tempCanvas = document.createElement('canvas'); tempCanvas.width = originalImage.naturalWidth; tempCanvas.height = originalImage.naturalHeight; const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true }); if (!tempCtx) { console.error("Error creando contexto temporal para cachear ImageData."); originalImageDataCache = null; return; } try { tempCtx.drawImage(originalImage, 0, 0); originalImageDataCache = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height); console.log("   ImageData original cacheada OK."); } catch (e) { console.error("Error al obtener ImageData original para cache:", e); originalImageDataCache = null; } }
+            function centerAndFitImage() { if (!originalImage || !canvasOuterContainer) return; const imgWidth = originalImage.naturalWidth; const imgHeight = originalImage.naturalHeight; const contWidth = canvasOuterContainer.clientWidth; const contHeight = canvasOuterContainer.clientHeight; zoomLevel = Math.min(contWidth / imgWidth, contHeight / imgHeight) * 0.95; panX = (contWidth - imgWidth * zoomLevel) / 2; panY = (contHeight - imgHeight * zoomLevel) / 2; updateTransform(); updateStatusBar(); console.log(`Imagen centrada/ajustada: zoom=${zoomLevel.toFixed(2)}, panX=${panX.toFixed(0)}, panY=${panY.toFixed(0)}`); }
+            function resetMask() { if (waitingForInnerHoleClick) cancelInnerHoleClickMode(); cancelContinuousLineDrawing(true); if (!maskCtx || !maskCanvas || !originalImage) return; console.log("Reseteando máscara a blanco (opaco)."); maskCtx.fillStyle = 'white'; maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height); history = []; saveStateToHistory(); updateActionButtonsState(); requestRender(); }
+
+            // --- Rendering & Previews ---
+            function requestRender() { const now = performance.now(); if (now - lastRenderTime >= RENDER_THROTTLE) { renderCanvas(); lastRenderTime = now; } }
+            function renderCanvas() { if (!ctx || !originalImage || !maskCanvas) return; ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(originalImage, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(maskCanvas, 0, 0); ctx.globalCompositeOperation = 'source-over'; }
+            function clearPreviewCanvas() { if (previewCtx) previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height); }
+
+            function drawToolPreview(imageX, imageY) {
+                 // Wrapper function to draw the correct preview based on state
+                 clearPreviewCanvas(); // Clear previous first
+                 if (isPanning || waitingForInnerHoleClick || isFloodFilling) return;
+
+                 if (currentTool === 'brush' || currentTool === 'eraser') {
+                     drawBrushPreview(imageX, imageY);
+                 } else if (isDrawingLine) { // Preview for simple line tool (while drawing)
+                     drawSimpleLineMarker(lineStartX, lineStartY); // Draw start point marker
+                     drawSimpleLinePreview(lineStartX, lineStartY, imageX, imageY); // Draw preview line to cursor
+                 } else if (isDrawingContinuousLine) { // Preview for BOTH continuous line tools (while drawing)
+                     if (lastContinuousLinePoint) {
+                         drawContinuousLineMarker(lastContinuousLinePoint.x, lastContinuousLinePoint.y); // Marker at last click
+                         drawContinuousLinePreview(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY); // Preview line to cursor
+                     }
+                 } else if (['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line'].includes(currentTool)) {
+                     // Show simple crosshair when line tools are active but NOT drawing
+                     drawCrosshairPreview(imageX, imageY);
+                 }
+             }
+            function drawBrushPreview(imageX, imageY) { if (!previewCtx) return; const size = brushOptions.size; const featherAmount = size * brushOptions.feather; const solidRadius = size / 2 - featherAmount / 2; const totalRadius = size / 2; previewCtx.save(); previewCtx.globalAlpha = 0.6; if (brushOptions.shape === 'circle') { const gradient = previewCtx.createRadialGradient(imageX, imageY, Math.max(0, solidRadius), imageX, imageY, totalRadius); gradient.addColorStop(0, 'rgba(0, 0, 0, 1)'); gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); previewCtx.fillStyle = gradient; previewCtx.beginPath(); previewCtx.arc(imageX, imageY, totalRadius, 0, Math.PI * 2); previewCtx.fill(); } else { const halfSize = size / 2; previewCtx.fillStyle = 'rgba(0, 0, 0, 0.6)'; previewCtx.fillRect(imageX - halfSize, imageY - halfSize, size, size); previewCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; previewCtx.lineWidth = 1 / zoomLevel; previewCtx.strokeRect(imageX - halfSize, imageY - halfSize, size, size); } previewCtx.restore(); }
+            function drawSimpleLineMarker(imageX, imageY) { if (!previewCtx) return; const isKeepTool = currentTool === 'line'; previewCtx.fillStyle = isKeepTool ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'; previewCtx.beginPath(); previewCtx.arc(imageX, imageY, 5 / zoomLevel, 0, Math.PI * 2); previewCtx.fill(); }
+            function drawSimpleLinePreview(startX, startY, endX, endY) { if (!previewCtx) return; const isKeepTool = currentTool === 'line'; previewCtx.save(); previewCtx.beginPath(); previewCtx.moveTo(startX, startY); previewCtx.lineTo(endX, endY); previewCtx.strokeStyle = isKeepTool ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'; previewCtx.lineWidth = brushOptions.size; previewCtx.lineCap = 'round'; previewCtx.stroke(); previewCtx.restore(); }
+            function drawContinuousLineMarker(imageX, imageY) { if (!previewCtx) return; const isKeepTool = currentTool === 'continuous-keep-line'; previewCtx.fillStyle = isKeepTool ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)'; previewCtx.beginPath(); previewCtx.arc(imageX, imageY, 4 / zoomLevel, 0, Math.PI * 2); previewCtx.fill(); }
+            function drawContinuousLinePreview(startX, startY, endX, endY) { if (!previewCtx) return; const isKeepTool = currentTool === 'continuous-keep-line'; previewCtx.save(); previewCtx.beginPath(); previewCtx.moveTo(startX, startY); previewCtx.lineTo(endX, endY); previewCtx.strokeStyle = isKeepTool ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'; previewCtx.lineWidth = brushOptions.size; previewCtx.lineCap = 'round'; previewCtx.stroke(); previewCtx.restore(); }
+            function drawCrosshairPreview(imageX, imageY) { if (!previewCtx) return; const crossSize = 10 / zoomLevel; previewCtx.save(); previewCtx.strokeStyle = 'rgba(0, 0, 0, 0.6)'; previewCtx.lineWidth = 1 / zoomLevel; previewCtx.beginPath(); previewCtx.moveTo(imageX - crossSize, imageY); previewCtx.lineTo(imageX + crossSize, imageY); previewCtx.moveTo(imageX, imageY - crossSize); previewCtx.lineTo(imageX, imageY + crossSize); previewCtx.stroke(); previewCtx.restore(); }
+            function drawLinePreviewOnMove() { drawToolPreview(currentMousePos.x, currentMousePos.y); } // Update generic preview which handles lines
+
+            // --- Mask Modification ---
+            function applyMaskModification(drawX, drawY, tool, options) { // Only for Brush/Eraser Dabs
+                if (!maskCtx || (tool !== 'brush' && tool !== 'eraser')) return;
+                const isEraser = tool === 'eraser';
+                maskCtx.save(); maskCtx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+                const size = options.size; const halfSize = size / 2; const feather = options.feather; const opacity = options.opacity;
+                if (options.shape === 'circle') { const solidRadius = halfSize * (1 - feather); const gradient = maskCtx.createRadialGradient(drawX, drawY, solidRadius, drawX, drawY, halfSize); const color = isEraser ? '0,0,0' : '255,255,255'; gradient.addColorStop(0, `rgba(${color}, ${opacity})`); gradient.addColorStop(1, `rgba(${color}, 0)`); maskCtx.fillStyle = gradient; maskCtx.beginPath(); maskCtx.arc(drawX, drawY, halfSize, 0, Math.PI * 2); maskCtx.fill(); }
+                else { const color = isEraser ? `rgba(0,0,0, ${opacity})` : `rgba(255,255,255, ${opacity})`; maskCtx.fillStyle = color; maskCtx.fillRect(drawX - halfSize, drawY - halfSize, size, size); }
+                maskCtx.restore();
+             }
+            function drawLineOnMask(imgX1, imgY1, imgX2, imgY2, tool, options) { // For all line/trace tools AND brush/eraser drag
+                 if (!maskCtx) return;
+                 const isEraserTool = tool === 'eraser' || tool === 'eraser-line' || tool === 'continuous-eraser-line';
+                 const size = options.size; const opacity = options.opacity;
+                 maskCtx.save(); maskCtx.globalCompositeOperation = isEraserTool ? 'destination-out' : 'source-over';
+                 maskCtx.beginPath(); maskCtx.moveTo(imgX1, imgY1); maskCtx.lineTo(imgX2, imgY2);
+                 maskCtx.lineWidth = size; maskCtx.lineCap = 'round'; maskCtx.lineJoin = 'round';
+                 const color = isEraserTool ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+                 maskCtx.strokeStyle = color; maskCtx.stroke(); maskCtx.restore();
+                 requestRender(); // Render after drawing line segment
+             }
+
+            // --- Interaction Handling ---
+            function getInteractionPos(evt) { if (!canvasOuterContainer) return { screenX:0, screenY:0, imageX: 0, imageY: 0 }; const rect = canvasOuterContainer.getBoundingClientRect(); const clientX = evt.clientX ?? evt.pageX ?? 0; const clientY = evt.clientY ?? evt.pageY ?? 0; const screenX = clientX - rect.left; const screenY = clientY - rect.top; const imageX = (screenX - panX) / zoomLevel; const imageY = (screenY - panY) / zoomLevel; return { screenX, screenY, imageX, imageY }; }
+
+            function handleInteractionStart(e) {
+                 if (!originalImage || isFloodFilling) return;
+                 if (e.preventDefault && e.cancelable) e.preventDefault();
+                 const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
+
+                 if (waitingForInnerHoleClick) { removeInnerHoleAt(imageX, imageY); return; }
+                 if (isSpacePressed) { isPanning = true; panStartX = screenX - panX; panStartY = screenY - panY; canvasOuterContainer.style.cursor = 'grabbing'; return; }
+
+                 switch (currentTool) {
+                    case 'line': case 'eraser-line':
+                        if (!isDrawingLine) {
+                            isDrawingLine = true; lineStartX = imageX; lineStartY = imageY;
+                            updateActionButtonsState(); // Disable options during line draw
+                            drawToolPreview(imageX, imageY); canvasOuterContainer.style.cursor = 'crosshair';
+                        } else {
+                            drawLineOnMask(lineStartX, lineStartY, imageX, imageY, currentTool, brushOptions);
+                            saveStateToHistory(); isDrawingLine = false; clearPreviewCanvas();
+                            updateActionButtonsState(); canvasOuterContainer.style.cursor = getToolCursor();
+                            drawToolPreview(imageX, imageY); // Show cursor preview again
+                        }
+                        break;
+                    case 'continuous-keep-line': case 'continuous-eraser-line':
+                         if (!isDrawingContinuousLine) { // First click
+                             isDrawingContinuousLine = true; lastContinuousLinePoint = { x: imageX, y: imageY };
+                             updateActionButtonsState(); // Disable options
+                             drawToolPreview(imageX, imageY); canvasOuterContainer.style.cursor = 'crosshair';
+                         } else { // Subsequent clicks
+                             drawLineOnMask(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY, currentTool, brushOptions);
+                             lastContinuousLinePoint = { x: imageX, y: imageY };
+                             saveStateToHistory();
+                             drawToolPreview(imageX, imageY); // Update marker/preview line
+                         }
+                         break;
+                    case 'brush': case 'eraser': default:
+                         if(isDrawingLine) { isDrawingLine = false; clearPreviewCanvas(); updateActionButtonsState();} // Cancel simple line if active
+                         cancelContinuousLineDrawing(true); // Cancel continuous line if active
+                         isDrawing = true; lastX = imageX; lastY = imageY;
+                         updateActionButtonsState(); // Disable options while drawing
+                         applyMaskModification(imageX, imageY, currentTool, brushOptions); // Apply first dab
+                         requestRender(); canvasOuterContainer.style.cursor = 'crosshair';
+                         break;
+                 }
+            }
+
+            function handleInteractionMove(e) { // *** CORREGIDA ***
+                 const isAnyActionBlocked = isFloodFilling || waitingForInnerHoleClick;
+                 if (!originalImage || isAnyActionBlocked) return; // Allow moving mouse even if drawing/lining
+
+                 const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
+                 currentMousePos = { x: imageX, y: imageY }; // Update mouse pos regardless of state
+
+                 if (isPanning) {
+                    panX = screenX - panStartX; panY = screenY - panStartY;
+                    updateTransform(); updateStatusBar();
+                 } else if (isDrawing) { // Brush/Eraser drag
+                    // *** CORREGIDO: Llamar a drawLineOnMask para simular trazo ***
+                    drawLineOnMask(lastX, lastY, imageX, imageY, currentTool, brushOptions);
+                    lastX = imageX; lastY = imageY;
+                    // requestRender(); // Called by drawLineOnMask
+                    drawToolPreview(imageX, imageY); // Show brush preview at cursor
+                 } else {
+                     // Only update tool previews if NOT panning or dragging brush/eraser
+                     // This call now handles previews for active line/trace drawing states
+                     drawToolPreview(imageX, imageY);
+                 }
+            }
+
+            function handleInteractionEnd(e) {
+                if (isPanning) {
+                    isPanning = false; canvasOuterContainer.style.cursor = getToolCursor();
+                } else if (isDrawing) { // Finished brush/eraser drag
+                    isDrawing = false;
+                    // Make sure last segment is rendered (might have been throttled)
+                    requestRender();
+                    saveStateToHistory();
+                    clearPreviewCanvas();
+                    updateActionButtonsState(); // Re-enable options
+                    drawToolPreview(currentMousePos.x, currentMousePos.y); // Show final brush preview
+                }
+                // For line/trace tools, state changes on click, not mouseup
+             }
+            function handleKeyDown(e) { // *** CORREGIDA ***
+                 const isFocusOnInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable;
+
+                 // Escape: Cancela modos activos
+                 if (e.key === 'Escape') {
+                    if (waitingForInnerHoleClick) { cancelInnerHoleClickMode(); e.preventDefault(); return; }
+                    if (isDrawingLine) { isDrawingLine = false; clearPreviewCanvas(); updateActionButtonsState(); console.log("Línea simple cancelada (Esc)."); e.preventDefault(); return; }
+                    if (isDrawingContinuousLine) { cancelContinuousLineDrawing(); e.preventDefault(); return; } // Cancela cualquier trazo continuo
+                 }
+
+                 // --- Comprobación de estado unificada para acciones bloqueantes ---
+                 const isActionBlockingInteraction = isDrawing || isDrawingLine || isDrawingContinuousLine || waitingForInnerHoleClick || isFloodFilling;
+
+                 // Space: Pan (si no hay acción bloqueante y no hay foco en input)
+                 if (e.key === ' ' && !isSpacePressed && !e.repeat && !isActionBlockingInteraction && !isFocusOnInput) {
+                    isSpacePressed = true; if (!isPanning) canvasOuterContainer.style.cursor = 'grab';
+                    e.preventDefault();
+                 }
+
+                 // Undo: Ctrl+Z / Cmd+Z (si no hay acción bloqueante)
+                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.repeat) {
+                    if (!isActionBlockingInteraction) {
+                        e.preventDefault();
+                        undo();
+                    } else {
+                        console.log("Undo bloqueado durante acción.");
+                    }
+                 }
+
+                 // Atajos de Herramientas (si no hay acción bloqueante y no hay foco en input)
+                 if (!isActionBlockingInteraction && !isFocusOnInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                     switch(e.key.toLowerCase()) {
+                        case 'b': setActiveTool('brush'); e.preventDefault(); break;
+                        case 'e': setActiveTool('eraser'); e.preventDefault(); break;
+                        case 'l': setActiveTool(e.shiftKey ? 'eraser-line' : 'line'); e.preventDefault(); break;
+                        // *** NUEVO CASO PARA 'C' ***
+                        case 'c':
+                            setActiveTool('continuous-keep-line');
+                            e.preventDefault();
+                            break;
+                        // *** FIN NUEVO CASO ***
+                        case 'x': setActiveTool('continuous-eraser-line'); e.preventDefault(); break;
+                     }
+                 }
+            }
+            function handleKeyUp(e) { if (e.key === ' ') { isSpacePressed = false; if (!isPanning) { canvasOuterContainer.style.cursor = getToolCursor(); } e.preventDefault(); } }
+            function handleWheelZoom(e) { const isAnyAction = isDrawing || isDrawingLine || isDrawingContinuousLine || isFloodFilling || waitingForInnerHoleClick; if (!originalImage || isAnyAction) return; e.preventDefault(); const { screenX, screenY } = getInteractionPos(e); const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1; zoomInOut(zoomFactor, screenX, screenY); }
+            function zoomInOut(factor, pivotX, pivotY) { // *** CORREGIDA ***
+                 if (!originalImage) return;
+                 const newZoomLevel = Math.max(0.1, Math.min(zoomLevel * factor, 15));
+                 if (newZoomLevel === zoomLevel) return;
+                 const dx = (pivotX - panX) * (newZoomLevel / zoomLevel - 1);
+                 const dy = (pivotY - panY) * (newZoomLevel / zoomLevel - 1);
+                 panX -= dx; panY -= dy; zoomLevel = newZoomLevel;
+                 updateTransform(); updateStatusBar(); clearPreviewCanvas();
+                 // Redraw previews correctly after zoom
+                 drawToolPreview(currentMousePos.x, currentMousePos.y); // This now handles all preview cases
+            }
+
+            // --- Tool Management ---
+            function setActiveTool(tool) { if (tool !== 'hole-remover' && waitingForInnerHoleClick) { cancelInnerHoleClickMode(); } if (tool !== 'line' && tool !== 'eraser-line' && isDrawingLine) { isDrawingLine = false; clearPreviewCanvas(); console.log("Línea simple cancelada por cambio de herramienta."); } const isContinuousTool = tool === 'continuous-keep-line' || tool === 'continuous-eraser-line'; if (!isContinuousTool && isDrawingContinuousLine) { cancelContinuousLineDrawing(); } currentTool = tool; console.log("Herramienta activa:", tool); const allManualButtons = [brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn]; allManualButtons.forEach(btn => btn.classList.remove('active-tool')); const activeBtn = document.getElementById(`${tool}-tool`); if (activeBtn && allManualButtons.includes(activeBtn)) { activeBtn.classList.add('active-tool'); } const isBrushOrEraser = tool === 'brush' || tool === 'eraser'; const isAnyLineBasedTool = tool === 'line' || tool === 'eraser-line' || tool === 'continuous-keep-line' || tool === 'continuous-eraser-line'; const showBrushOptionsPanel = isBrushOrEraser || isAnyLineBasedTool; brushOptionsSection.style.display = showBrushOptionsPanel ? 'block' : 'none'; featherOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none'; shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none'; canvasOuterContainer.style.cursor = getToolCursor(); updateStatusBar(); updateToolOptionsDisplay(); clearPreviewCanvas(); drawToolPreview(currentMousePos.x, currentMousePos.y); updateActionButtonsState(); }
+            function getToolCursor() { if (waitingForInnerHoleClick) return 'crosshair'; if (isSpacePressed && !isPanning) return 'grab'; if (isPanning) return 'grabbing'; if (currentTool === 'brush' || currentTool === 'eraser' || currentTool === 'line' || currentTool === 'eraser-line' || currentTool === 'continuous-keep-line' || currentTool === 'continuous-eraser-line') return 'crosshair'; return 'default'; }
+            function updateToolOptionsDisplay() { brushSizeValue.textContent = brushOptions.size; brushFeatherValue.textContent = brushOptions.feather.toFixed(2); brushOpacityValue.textContent = brushOptions.opacity.toFixed(2); shapeCircleBtn.classList.toggle('active-shape', brushOptions.shape === 'circle'); shapeSquareBtn.classList.toggle('active-shape', brushOptions.shape === 'square'); }
+            function updateTransform() { if (canvasInnerContainer) canvasInnerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`; }
+            function updateStatusBar() { // *** CORREGIDO Nombres Herramienta ***
+                zoomLevelSpan.textContent = Math.round(zoomLevel * 100);
+                let toolName = 'Ninguna';
+                if (waitingForInnerHoleClick) {
+                    toolName = 'Eliminar Hueco (Clic)';
+                } else {
+                    switch (currentTool) {
+                         case 'brush': toolName = 'Pincel'; break;
+                         case 'eraser': toolName = 'Borrador'; break;
+                         case 'line': toolName = 'Línea Conservar'; break;
+                         case 'eraser-line': toolName = 'Línea Borrar'; break;
+                         case 'continuous-keep-line': toolName = 'Trazo Conservar'; break;
+                         case 'continuous-eraser-line': toolName = 'Trazo Borrar'; break;
+                     }
+                    if (isDrawingLine || isDrawingContinuousLine) toolName += ' (dibujando)';
+                    else if (isDrawing) toolName += ' (pintando)';
+                 }
+                 currentToolSpan.textContent = toolName;
+            }
+            function updateActionButtonsState() { // *** CORREGIDA lógica sliders ***
+                 const imageLoaded = !!originalImage && !!ctx && !!maskCtx;
+                 const canUndo = history.length > 1;
+                 // Acción bloqueante general (para botones principales y herramientas)
+                 const isActionInProgress = isFloodFilling || waitingForInnerHoleClick;
+                 // Acción de dibujo activo (SOLO para deshabilitar sliders durante el drag/clic)
+                 const isActivelyDrawing = isDrawing || isDrawingLine || isDrawingContinuousLine; // AHORA INCLUYE LÍNEAS/TRAZOS
+
+                 // Botones estándar
+                 undoBtn.disabled = !canUndo || isActionInProgress || isActivelyDrawing;
+                 undoCountSpan.textContent = Math.max(0, history.length - 1);
+                 resetBtn.disabled = !imageLoaded || !canUndo || isActionInProgress || isActivelyDrawing;
+                 exportBtn.disabled = !imageLoaded || isActionInProgress || isActivelyDrawing;
+                 copyBtn.disabled = !imageLoaded || !isClipboardWriteSupported || isActionInProgress || isActivelyDrawing;
+                 pasteBtn.disabled = !isClipboardReadSupported || isActionInProgress || isActivelyDrawing;
+
+                 // Botones de herramientas manuales (permitir cambiar si no hay proceso mayor)
+                 [brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn].forEach(btn => btn.disabled = !imageLoaded || isActionInProgress);
+
+                 // Controles de opciones (deshabilitar si se está dibujando/clickeando CUALQUIER herramienta manual)
+                 const disableOptions = !imageLoaded || isActionInProgress || isActivelyDrawing;
+                 [brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn].forEach(control => control.disabled = disableOptions);
+
+                 // Herramientas Auto / Tolerancia (deshabilitar si hay cualquier acción manual o auto)
+                 const disableAuto = !imageLoaded || isActionInProgress || isActivelyDrawing;
+                 removeEdgeBgBtn.disabled = disableAuto || isFloodFilling; // Explicit disable on fill
+                 removeInnerHoleBtn.disabled = disableAuto;
+                 if (waitingForInnerHoleClick) removeInnerHoleBtn.disabled = false; // Allow clicking to deactivate
+                 edgeColorToleranceSlider.disabled = disableAuto;
+            }
+
+            function checkClipboardSupport() { if (!isClipboardReadSupported) { pasteSupportWarning.classList.remove('hidden'); pasteBtn.disabled = true; pasteBtn.title = "Pegar no soportado/permitido."; console.warn("Clipboard API (read) no soportada."); } else { pasteSupportWarning.classList.add('hidden'); } if (!isClipboardWriteSupported) { clipboardSupportWarning.classList.remove('hidden'); copyBtn.disabled = true; copyBtn.title = "Copiar no soportado/permitido."; console.warn("Clipboard API (write) no soportada."); } else { clipboardSupportWarning.classList.add('hidden'); } updateActionButtonsState(); }
+            function saveStateToHistory() { if (!maskCtx || !maskCanvas) return; try { history.push(maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height)); if (history.length > MAX_HISTORY + 1) { history.shift(); } updateActionButtonsState(); } catch(e) { console.error("Error guardando historial:", e); } }
+            function undo() { if (history.length <= 1 || isFloodFilling || waitingForInnerHoleClick || isDrawing || isDrawingLine || isDrawingContinuousLine) return; console.log("Deshaciendo..."); try { history.pop(); const previousState = history[history.length - 1]; if(previousState) { maskCtx.putImageData(previousState, 0, 0); requestRender(); } else { resetMask(); } } catch(e) { console.error("Error al deshacer:", e); } finally { updateActionButtonsState(); } }
+            function showButtonFeedback(button, status, message = null, duration = 1500) { if (!button) return; const isHoleRemoverButton = button.id === 'remove-inner-hole-btn'; const isHoleRemoverActive = waitingForInnerHoleClick && isHoleRemoverButton; if (!button.dataset.originalHtml && !isHoleRemoverActive) button.dataset.originalHtml = button.innerHTML; if (!button.dataset.originalTitle && !isHoleRemoverActive) button.dataset.originalTitle = button.title; button.classList.remove('success', 'error', 'working', 'cancelling'); if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout); button.feedbackTimeout = null; button.classList.add(status); if (message) { if (message.startsWith('<i class="')) button.innerHTML = message; else button.textContent = message; } button.disabled = (status === 'working' || status === 'cancelling'); const shouldRevert = (status === 'success' || status === 'error'); if (shouldRevert && !isHoleRemoverActive) { button.feedbackTimeout = setTimeout(() => { button.classList.remove(status); if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml; if (button.dataset.originalTitle) button.title = button.dataset.originalTitle; delete button.dataset.originalHtml; delete button.dataset.originalTitle; updateActionButtonsState(); }, duration); } else if (shouldRevert && isHoleRemoverActive) { button.feedbackTimeout = setTimeout(() => { button.classList.remove(status); button.classList.add('active-hole-remover'); button.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Clic en Hueco'; button.title = "Haz clic en un área interna para eliminarla, o pulsa Esc para cancelar."; updateActionButtonsState(); }, duration); } else if (!shouldRevert && isHoleRemoverActive) { button.classList.add('active-hole-remover'); } }
+            function showProcessingOverlay(message) { processingStatusText.textContent = message || "Procesando..."; processingOverlay.classList.remove('hidden'); } function hideProcessingOverlay() { processingOverlay.classList.add('hidden'); }
+            async function createFinalImageBlob(format = 'image/png') { if (!originalImage || !maskCanvas) return null; console.log("Creando Blob final..."); const finalCanvas = document.createElement('canvas'); finalCanvas.width = originalImage.naturalWidth; finalCanvas.height = originalImage.naturalHeight; const finalCtx = finalCanvas.getContext('2d'); if (!finalCtx) { console.error("No se pudo crear contexto final."); return null; } finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height); finalCtx.drawImage(originalImage, 0, 0); finalCtx.globalCompositeOperation = 'destination-in'; finalCtx.drawImage(maskCanvas, 0, 0); finalCtx.globalCompositeOperation = 'source-over'; return new Promise((resolve) => finalCanvas.toBlob(resolve, format)); }
+            async function exportImage() { if (!originalImage || exportBtn.disabled) return; showButtonFeedback(exportBtn, 'working', 'Exportando...'); try { const blob = await createFinalImageBlob(); if (!blob) throw new Error("No se pudo generar Blob."); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${imageFilename}_sin_fondo.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showButtonFeedback(exportBtn, 'success', '<i class="fas fa-check"></i> Exportado'); } catch (error) { console.error("Error exportando:", error); alert(`Error al exportar: ${error.message}`); showButtonFeedback(exportBtn, 'error', '<i class="fas fa-times"></i> Error'); } finally { updateActionButtonsState(); } }
+            async function copyImageToClipboard() { if (!originalImage || !isClipboardWriteSupported || copyBtn.disabled) return; showButtonFeedback(copyBtn, 'working', 'Copiando...'); try { const blob = await createFinalImageBlob('image/png'); if (!blob) throw new Error("No se pudo generar Blob."); const item = new ClipboardItem({ 'image/png': blob }); await navigator.clipboard.write([item]); showButtonFeedback(copyBtn, 'success', '<i class="fas fa-check"></i> Copiado'); } catch (error) { console.error("Error copiando:", error); let msg = "Error al copiar."; if (error.name === 'NotAllowedError') msg = "Permiso denegado por el navegador."; else if (error.message.includes("large")) msg = "Imagen muy grande para copiar."; else if (error.name === 'SecurityError') msg = "Error de seguridad (HTTPS?)."; alert(`No se pudo copiar: ${msg}\n${error.message}`); showButtonFeedback(copyBtn, 'error', '<i class="fas fa-times"></i> Error'); } finally { updateActionButtonsState(); } }
+            async function handlePasteButtonClick() { if (!isClipboardReadSupported || pasteBtn.disabled) return; console.log("Intentando pegar (botón)..."); showButtonFeedback(pasteBtn, 'working', 'Pegando...'); try { const permission = await navigator.permissions.query({ name: 'clipboard-read' }); if (permission.state === 'denied') throw new Error("Permiso denegado."); const clipboardItems = await navigator.clipboard.read(); let imageFound = false; for (const item of clipboardItems) { const imageType = item.types.find(type => type.startsWith("image/")); if (imageType) { const blob = await item.getType(imageType); handleFile(new File([blob], "imagen_pegada.png", { type: imageType })); imageFound = true; break; } } if (imageFound) showButtonFeedback(pasteBtn, 'success', '<i class="fas fa-check"></i> Pegado'); else showButtonFeedback(pasteBtn, 'error', 'No hay imagen', 1000); } catch (error) { console.error("Error pegando:", error); let msg = "Error al pegar."; if (error.name === 'NotAllowedError' || error.message.includes("denied")) msg = "Permiso denegado."; else if (error.name === 'SecurityError') msg = "Error de seguridad (HTTPS?)."; else if (error.message.includes("No valid data")) msg = "No hay imagen válida."; else if (error.message.includes("User activation")) msg = "Requiere clic previo."; alert(`No se pudo pegar: ${msg}\n${error.message}`); showButtonFeedback(pasteBtn, 'error', '<i class="fas fa-times"></i> Error'); } finally { updateActionButtonsState(); } }
+            function handleClipboardPaste(clipboardData) { if (!clipboardData?.items) return false; console.log("Manejando evento paste..."); let imageFound = false; for (const item of clipboardData.items) { if (item.kind === 'file' && item.type.startsWith('image/')) { const file = item.getAsFile(); if (file) { handleFile(file); imageFound = true; break; } } } if(!imageFound) console.log("No se encontraron imágenes en paste."); return imageFound; }
+            function colorDistance(r1, g1, b1, r2, g2, b2) { const dr = r1 - r2; const dg = g1 - g2; const db = b1 - b2; return dr * dr + dg * dg + db * db; }
+            async function handleRemoveBackgroundByFloodFill() { console.log(`%c>>> handleRemoveBackgroundByFloodFill - ${new Date().toLocaleTimeString()}`, 'color: blue; font-weight: bold;'); if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache) { alert("Error: Faltan datos para fondo automático."); showButtonFeedback(removeEdgeBgBtn, 'error'); return; } if (isFloodFilling) { console.warn("Flood Fill ya en proceso."); return; } if (isDrawing || isDrawingLine || isDrawingContinuousLine) { console.warn("Flood Fill bloqueado: Edición en curso."); return;} cancelContinuousLineDrawing(true); isFloodFilling = true; cancelFloodFillRequest = false; updateActionButtonsState(); showButtonFeedback(removeEdgeBgBtn, 'working', 'Analizando...'); showProcessingOverlay('Analizando bordes...'); await new Promise(resolve => setTimeout(resolve, 50)); try { if (cancelFloodFillRequest) throw new Error("CancelledBeforeStart"); processingStatusText.textContent = "Procesando fondo..."; const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3; const originalData = originalImageDataCache; const maskImageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height); const width = maskImageData.width; const height = maskImageData.height; const visited = Array(height).fill(null).map(() => Array(width).fill(false)); console.log(`   Tolerancia: ${tolerance}, DistSq: ${toleranceSq.toFixed(0)}`); const startTime = performance.now(); let wasCancelledDuringFill = false; for (let x = 0; x < width; x++) { if (cancelFloodFillRequest) { wasCancelledDuringFill = true; break; } if (floodFillMask(originalData, maskImageData, x, 0, toleranceSq, visited)) { wasCancelledDuringFill = true; break; } if (floodFillMask(originalData, maskImageData, x, height - 1, toleranceSq, visited)) { wasCancelledDuringFill = true; break; } } if (!wasCancelledDuringFill) { for (let y = 1; y < height - 1; y++) { if (cancelFloodFillRequest) { wasCancelledDuringFill = true; break; } if (floodFillMask(originalData, maskImageData, 0, y, toleranceSq, visited)) { wasCancelledDuringFill = true; break; } if (floodFillMask(originalData, maskImageData, width - 1, y, toleranceSq, visited)) { wasCancelledDuringFill = true; break; } } } const endTime = performance.now(); console.log(`   Flood Fill terminado en ${((endTime - startTime)/1000).toFixed(2)}s. Cancelado: ${wasCancelledDuringFill || cancelFloodFillRequest}`); if (cancelFloodFillRequest || wasCancelledDuringFill) throw new Error("Cancelled"); maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); renderCanvas(); console.log("<<< Fondo Automático Completado."); showButtonFeedback(removeEdgeBgBtn, 'success', '<i class="fas fa-check"></i> Hecho'); } catch (error) { if (error.message === "Cancelled" || error.message === "CancelledBeforeStart") { console.log("%cFlood Fill CANCELADO.", 'color: orange;'); showButtonFeedback(removeEdgeBgBtn, 'error', 'Cancelado', 1500); } else { console.error("Error Flood Fill:", error); alert(`Error proceso automático: ${error.message}`); showButtonFeedback(removeEdgeBgBtn, 'error'); } } finally { console.log("   Finally Flood Fill (Edge): Limpiando estado."); isFloodFilling = false; cancelFloodFillRequest = false; hideProcessingOverlay(); if (!removeEdgeBgBtn.classList.contains('success') && !removeEdgeBgBtn.classList.contains('error')) { removeEdgeBgBtn.classList.remove('working', 'cancelling'); if (removeEdgeBgBtn.dataset.originalHtml) removeEdgeBgBtn.innerHTML = removeEdgeBgBtn.dataset.originalHtml; if (removeEdgeBgBtn.dataset.originalTitle) removeEdgeBgBtn.title = removeEdgeBgBtn.dataset.originalTitle; delete removeEdgeBgBtn.dataset.originalHtml; delete removeEdgeBgBtn.dataset.originalTitle; } updateActionButtonsState(); } }
+            function floodFillMask(originalData, maskData, startX, startY, toleranceSq, visited) { const width = originalData.width; const height = originalData.height; const originalPixels = originalData.data; const maskPixels = maskData.data; if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return false; const startIndex = (startY * width + startX) * 4; const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2]; const startA = originalPixels[startIndex + 3]; if (startA < 128 || maskPixels[startIndex + 3] < 128) { visited[startY][startX] = true; return false; } const queue = [[startX, startY]]; visited[startY][startX] = true; maskPixels[startIndex + 3] = 0; let pixelsFilled = 1; let iterations = 0; const maxIterations = width * height * 1.5; while (queue.length > 0) { iterations++; if (iterations % 1000 === 0 && cancelFloodFillRequest) return true; if (iterations > maxIterations) { console.warn(`Flood fill (edge) excedió límite desde (${startX}, ${startY}).`); break; } const [x, y] = queue.shift(); const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]]; for (const [nx, ny] of neighbors) { if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) { const nIndex = (ny * width + nx) * 4; const nA_orig = originalPixels[nIndex + 3]; const nA_mask = maskPixels[nIndex + 3]; if (nA_orig >= 128 && nA_mask >= 128) { const nR = originalPixels[nIndex]; const nG = originalPixels[nIndex + 1]; const nB = originalPixels[nIndex + 2]; const distSq = colorDistance(startR, startG, startB, nR, nG, nB); if (distSq <= toleranceSq) { visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsFilled++; } else { visited[ny][nx] = true; } } else { visited[ny][nx] = true; } } } } return false; }
+            function activateInnerHoleClickMode() { if (!originalImage || isFloodFilling || waitingForInnerHoleClick || isDrawing || isDrawingLine || isDrawingContinuousLine) return; console.log("Activando modo 'Eliminar Hueco Interno'"); cancelContinuousLineDrawing(true); setActiveTool('hole-remover'); waitingForInnerHoleClick = true; removeInnerHoleBtn.classList.add('active-hole-remover'); if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout); if (!removeInnerHoleBtn.dataset.originalHtml) removeInnerHoleBtn.dataset.originalHtml = removeInnerHoleBtn.innerHTML; if (!removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.dataset.originalTitle = removeInnerHoleBtn.title; removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco'; updateStatusBar(); updateActionButtonsState(); clearPreviewCanvas(); }
+            function cancelInnerHoleClickMode() { if (!waitingForInnerHoleClick) return; console.log("Cancelando modo 'Eliminar Hueco Interno'"); waitingForInnerHoleClick = false; removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error', 'working', 'cancelling'); if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout); if (removeInnerHoleBtn.dataset.originalHtml) { removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml; delete removeInnerHoleBtn.dataset.originalHtml; } else { removeInnerHoleBtn.innerHTML = '<i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno'; } if (removeInnerHoleBtn.dataset.originalTitle) { removeInnerHoleBtn.title = removeInnerHoleBtn.dataset.originalTitle; delete removeInnerHoleBtn.dataset.originalTitle; } setActiveTool('eraser'); updateStatusBar(); updateActionButtonsState(); }
+            function removeInnerHoleAt(startX, startY) { console.log(`%c>>> removeInnerHoleAt (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: purple; font-weight: bold;'); if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || !waitingForInnerHoleClick) { console.warn("Eliminar Hueco abortado: Faltan datos o modo no activo."); if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout); removeInnerHoleBtn.classList.remove('active-hole-remover'); removeInnerHoleBtn.classList.add('error'); removeInnerHoleBtn.innerHTML = '<i class="fas fa-times"></i> Error Prep.'; holeRemoverFeedbackTimeout = setTimeout(cancelInnerHoleClickMode, 1000); return; } const width = maskCanvas.width; const height = maskCanvas.height; startX = Math.floor(startX); startY = Math.floor(startY); if (startX < 0 || startX >= width || startY < 0 || startY >= height) { console.log("Clic fuera de límites."); return; } let pixelsChanged = 0; let success = false; let message = ''; let statusClass = 'error'; try { const maskImageData = maskCtx.getImageData(0, 0, width, height); const maskPixels = maskImageData.data; const originalPixels = originalImageDataCache.data; const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3; const startIndex = (startY * width + startX) * 4; if (maskPixels[startIndex + 3] < 128) { message = 'Ya Transparente'; statusClass = 'error'; success = false; } else { const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2]; const visited = Array(height).fill(null).map(() => Array(width).fill(false)); const queue = [[startX, startY]]; visited[startY][startX] = true; maskPixels[startIndex + 3] = 0; pixelsChanged = 1; let iterations = 0; const maxIterations = width * height * 1.5; while (queue.length > 0) { iterations++; if (iterations > maxIterations) { console.warn(`Flood fill (hueco) excedió límite.`); break; } const [x, y] = queue.shift(); const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]]; for (const [nx, ny] of neighbors) { if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) { const nIndex = (ny * width + nx) * 4; if (maskPixels[nIndex + 3] > 128) { const nR_orig = originalPixels[nIndex]; const nG_orig = originalPixels[nIndex + 1]; const nB_orig = originalPixels[nIndex + 2]; const distSq = colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig); if (distSq <= toleranceSq) { visited[ny][nx] = true; queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsChanged++; } else { visited[ny][nx] = true; } } else { visited[ny][nx] = true; } } } } if (pixelsChanged > 1) { maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender(); message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true; } else { message = 'No Cambios'; statusClass = 'error'; success = false; } } } catch (error) { console.error("Error eliminando hueco:", error); alert(`Error: ${error.message}`); message = '<i class="fas fa-times"></i> Error Proc.'; statusClass = 'error'; success = false; } finally { const feedbackDuration = success ? 1000 : 1500; if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout); removeInnerHoleBtn.classList.remove('active-hole-remover'); removeInnerHoleBtn.classList.add(statusClass); removeInnerHoleBtn.innerHTML = message; holeRemoverFeedbackTimeout = setTimeout(() => { removeInnerHoleBtn.classList.remove('success', 'error'); if (waitingForInnerHoleClick) { removeInnerHoleBtn.classList.add('active-hole-remover'); removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco'; } else { cancelInnerHoleClickMode(); } }, feedbackDuration); } }
+
+        }); // End DOMContentLoaded
+    </script>
+</body>
+</html>
