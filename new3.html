@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminador de Fondos (Completo) - XocoStudio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- Estilos CSS (Optimizados) --- */
+        body { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+        /* Fondo Damero */
+        .checkerboard-bg {
+            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #e5e5e5; /* Color base por si falla la imagen */
+         }
+        /* Fondo Sólido (elimina imagen) */
+        .solid-bg {
+            background-image: none !important;
+         }
+        /* Estilos Herramientas */
+        .tool-btn.active-tool { background-color: #d1d5db; /* gray-300 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
+        .tool-btn.active-hole-remover { background-color: #fde047 !important; /* yellow-300 */ color: #713f12 !important; /* yellow-800 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #ca8a04; /* yellow-600 */}
+        .tool-btn.active-color-picker { background-color: #a5b4fc !important; /* indigo-300 */ color: #3730a3 !important; /* indigo-800 */ box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #6366f1; /* indigo-500 */}
+
+        .brush-shape.active-shape { border-color: #3b82f6; /* blue-500 */ border-width: 2px; }
+        /* Contenedor Canvas */
+        #canvas-outer-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            cursor: default; /* Cursor por defecto para el contenedor */
+            transition: background-color 0.3s ease; /* Transición suave para el color sólido */
+        }
+        #canvas-inner-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+        #image-canvas, #preview-canvas { display: block; position: absolute; top: 0; left: 0; max-width: none; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+        #preview-canvas { pointer-events: none; z-index: 1;}
+        #image-canvas { z-index: 0; }
+        /* Layout */
+        main { height: calc(100vh - 64px - 32px); /* Ajusta altura de main */ }
+        /* Iconos Personalizados */
+        .fa-line-eraser::before { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; }
+        .fa-line-eraser::after { content: ""; position: absolute; left: 15%; top: 50%; width: 70%; height: 2px; background-color: currentColor; transform: translateY(-50%) rotate(0deg); opacity: 0.6; z-index: 0; }
+        .tool-btn .fa-line-eraser { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+        #eraser-line-tool i { font-size: 0.9em; }
+         .fa-continuous-eraser-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+         .fa-continuous-eraser-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; }
+         .fa-continuous-eraser-line::after { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #ef4444; }
+         #continuous-eraser-line-tool i { font-size: 1em; }
+         .fa-continuous-keep-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; }
+         .fa-continuous-keep-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; }
+         .fa-continuous-keep-line::after { content: "\f55d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #22c55e; }
+         #continuous-keep-line-tool i { font-size: 1em; }
+         /* Feedback Botones */
+        .btn-feedback { transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out; }
+        .btn-feedback.success { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .btn-feedback.error { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .btn-feedback.working { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; cursor: wait; }
+        .btn-feedback.cancelling { background-color: #f97316 !important; color: white !important; border-color: #ea580c !important; cursor: default; }
+        /* Overlay Procesamiento */
+        .processing-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: none; }
+        .processing-overlay i { margin-bottom: 10px; }
+        .processing-overlay p { margin-top: 0px; font-size: 1.1rem; }
+        /* Color Picker UI */
+        .color-tag { display: inline-flex; align-items: center; background-color: #e5e7eb; border-radius: 9999px; padding: 2px 8px; margin: 2px; font-size: 0.8rem; line-height: 1; }
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; border: 1px solid #9ca3af; display: inline-block; }
+        .remove-color-btn { margin-left: 4px; cursor: pointer; color: #ef4444; background: none; border: none; padding: 0; font-weight: bold; line-height: 1; }
+        .remove-color-btn:hover { color: #dc2626; }
+        #selected-colors-list { max-height: 80px; overflow-y: auto; background-color: #f9fafb; padding: 4px; border-radius: 4px; border: 1px solid #d1d5db; }
+
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen overflow-hidden">
+
+    <header class="bg-white shadow-md p-4 flex-shrink-0 flex items-center">
+        <a href="https://xocostudio.com/" target="_blank" rel="noopener noreferrer" class="mr-4 flex-shrink-0">
+             <img src="https://xocostudio.com/assets/images/xocostudio-354x128.png" alt="XocoStudio Logo" class="h-8">
+        </a>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Eliminador de Fondos de Imágenes</h1>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row p-4 gap-4">
+        <!-- Panel de Controles -->
+        <aside class="w-full md:w-72 bg-white p-4 rounded-lg shadow space-y-6 flex-shrink-0 overflow-y-auto">
+            <!-- 1. Carga -->
+            <div id="upload-section">
+                 <h2 class="text-lg font-semibold mb-2">1. Cargar Imagen</h2>
+                 <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                    <p class="text-gray-600">Arrastra y suelta</p>
+                    <p class="text-sm text-gray-500 my-2">o</p>
+                    <div class="flex flex-col items-center space-y-2">
+                        <input type="file" id="file-input" accept="image/*" class="hidden">
+                        <button id="upload-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded btn-feedback">
+                            <i class="fas fa-upload mr-1"></i> Seleccionar Archivo
+                        </button>
+                        <button id="paste-btn" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Pegar imagen del portapapeles (Requiere permisos)">
+                             <i class="fas fa-paste mr-1"></i> Pegar (Ctrl+V)
+                        </button>
+                    </div>
+                     <p id="paste-support-warning" class="text-xs text-red-600 mt-2 hidden">Pegar desde el portapapeles no está soportado o permitido.</p>
+                 </div>
+                 <p id="filename-display" class="text-xs text-gray-600 mt-2 truncate"></p>
+            </div>
+
+            <!-- 2. Herramientas -->
+            <div id="tools-section" class="space-y-4 hidden pt-4 border-t">
+                <h2 class="text-lg font-semibold mb-2">2. Herramientas</h2>
+
+                 <!-- Auto / Color -->
+                 <div class="mb-4 space-y-2">
+                    <button id="remove-edge-bg-btn" class="w-full bg-cyan-600 hover:bg-cyan-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar fondo basado en el color de los bordes. Haz clic de nuevo para intentar cancelar.">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i> Fondo Automático (Bordes)
+                    </button>
+                    <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Activa/Desactiva el modo 'Eliminar Hueco'. Haz clic en un 'hueco' (ej: interior de 'o') para eliminarlo según su color original. Usa la tolerancia de abajo. Pulsa Esc para cancelar.">
+                        <i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno (Clic)
+                    </button>
+                    <button id="apply-color-removal-btn" class="w-full bg-indigo-600 hover:bg-indigo-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50 disabled:cursor-not-allowed" title="Elimina los colores seleccionados manualmente del fondo usando la tolerancia y el difuminado.">
+                        <i class="fas fa-fill-drip mr-1"></i> Aplicar Eliminación por Color
+                    </button>
+                    <div class="mt-2">
+                         <label for="edge-color-tolerance" class="block text-sm font-medium text-gray-700">Tolerancia (<span id="edge-color-tolerance-value">30</span>):</label>
+                         <input type="range" id="edge-color-tolerance" min="1" max="150" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled>
+                         <p class="text-xs text-gray-500 mt-1">Sensibilidad para Auto/Hueco/Color.</p>
+                     </div>
+                </div>
+
+                <!-- Manual -->
+                <div class="border-t pt-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Ajuste manual:</p>
+                    <div class="flex space-x-1 flex-wrap gap-y-1">
+                        <button id="color-picker-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Seleccionar Color Fondo (P) - Activa/Desactiva. Clic en imagen para añadir colores." disabled> <i class="fas fa-eye-dropper fa-fw"></i> </button>
+                        <button id="brush-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Pincel Conservar (B)" disabled> <i class="fas fa-paint-brush fa-fw"></i> </button>
+                        <button id="eraser-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Borrador Eliminar (E)" disabled> <i class="fas fa-eraser fa-fw"></i> </button>
+                        <button id="line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Conservar (L) - Clic inicio, Clic fin" disabled> <i class="fas fa-minus fa-fw"></i> </button>
+                        <button id="eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Línea Borrador (Shift+L) - Clic inicio, Clic fin" disabled> <i class="fa-line-eraser"></i> </button>
+                        <button id="continuous-keep-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Trazo Conservar Continuo (C o W) - Clic, Clic... (Esc para cancelar)" disabled>
+                             <i class="fa-continuous-keep-line"></i>
+                        </button>
+                        <button id="continuous-eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Trazo Borrador Continuo (X o Q) - Clic, Clic... (Esc para cancelar)" disabled>
+                             <i class="fa-continuous-eraser-line"></i>
+                        </button>
+                    </div>
+                </div>
+
+                 <!-- Sección Colores Seleccionados -->
+                <div id="selected-colors-section" class="space-y-2 hidden pt-4 border-t">
+                     <label class="block text-sm font-medium text-gray-700">Colores de Fondo Seleccionados:</label>
+                     <div id="selected-colors-list" class="text-xs text-gray-600">
+                        <!-- Las etiquetas de colores se añadirán aquí -->
+                         <p id="no-colors-selected" class="italic text-center p-2">Ningún color seleccionado. Usa <i class="fas fa-eye-dropper fa-fw"></i> y haz clic en la imagen.</p>
+                     </div>
+                </div>
+
+                <!-- Opciones Herramientas -->
+                <div id="brush-options-section" class="space-y-3 pt-4 border-t">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Opciones de Herramienta:</p>
+                    <div><label for="brush-size" class="block text-sm font-medium text-gray-700">Tamaño / Grosor: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                    <div id="feather-option"><label for="brush-feather" class="block text-sm font-medium text-gray-700">Difuminado: <span id="brush-feather-value">0.10</span></label><input type="range" id="brush-feather" min="0" max="1" step="0.05" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" title="Suavizado para Pincel/Borrador. También se usa para 'Aplicar Eliminación por Color'." disabled></div>
+                    <div><label for="brush-opacity" class="block text-sm font-medium text-gray-700">Opacidad: <span id="brush-opacity-value">1.00</span></label><input type="range" id="brush-opacity" min="0.05" max="1" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                    <div id="shape-option"><label class="block text-sm font-medium text-gray-700">Forma (Pincel/Borrador):</label><div class="flex space-x-2 mt-1"><button id="brush-shape-circle" class="brush-shape p-1 border rounded-full w-6 h-6 bg-gray-700 disabled:opacity-50" title="Circular" disabled></button><button id="brush-shape-square" class="brush-shape p-1 border rounded w-6 h-6 bg-gray-700 disabled:opacity-50" title="Cuadrado" disabled></button></div></div>
+                </div>
+                <!-- Acciones Edición -->
+                <div class="flex space-x-2 pt-4 border-t">
+                    <button id="undo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)" disabled> <i class="fas fa-undo"></i> (<span id="undo-count">0</span>) </button>
+                    <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Resetear Máscara" disabled> <i class="fas fa-trash-alt"></i> Reset </button>
+                </div>
+            </div>
+
+            <!-- Opciones de Fondo Previsualización -->
+            <div id="preview-bg-section" class="hidden pt-4 border-t space-y-2">
+                 <h2 class="text-lg font-semibold mb-2">Fondo Previsualización</h2>
+                 <div class="flex items-center space-x-2">
+                    <button id="preview-bg-toggle-btn" class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Cambiar a fondo de color sólido" disabled>
+                         <i id="preview-bg-icon" class="fas fa-th fa-fw"></i> <!-- Icono inicial: damero -->
+                    </button>
+                    <input type="color" id="preview-bg-color-input" value="#FFFFFF" class="h-8 w-10 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed" title="Color de fondo sólido (activo sólo con fondo sólido)" disabled>
+                 </div>
+            </div>
+
+            <!-- 3. Exportar / Copiar -->
+             <div id="export-section" class="hidden pt-4 border-t space-y-2">
+                 <h2 class="text-lg font-semibold mb-2">3. Guardar / Copiar</h2>
+                 <button id="export-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed btn-feedback" disabled><i class="fas fa-download mr-1"></i> Exportar PNG</button>
+                 <button id="copy-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed btn-feedback" disabled><i class="fas fa-copy mr-1"></i> Copiar Imagen</button>
+                 <p id="clipboard-support-warning" class="text-xs text-red-600 text-center hidden">La copia al portapapeles no está soportada o permitida.</p>
+             </div>
+        </aside>
+
+        <!-- Área de Trabajo -->
+        <section class="flex-grow bg-gray-300 rounded-lg shadow overflow-hidden relative">
+            <!-- Contenedor Principal del Canvas (con fondo inicial y transición) -->
+            <div id="canvas-outer-container" class="checkerboard-bg">
+                <div id="canvas-inner-container">
+                    <canvas id="image-canvas" class="hidden"></canvas>
+                    <canvas id="preview-canvas" class="hidden"></canvas>
+                </div>
+                <p id="canvas-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">Carga una imagen para empezar</p>
+            </div>
+            <!-- Spinner de Carga -->
+            <div id="loading-spinner" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden z-50 pointer-events-none">
+                <i class="fas fa-spinner fa-spin fa-3x text-blue-500"></i>
+                <p class="text-lg font-semibold ml-3">Cargando...</p>
+            </div>
+            <!-- Overlay de Procesamiento -->
+            <div id="processing-overlay" class="processing-overlay hidden">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p id="processing-status-text">Procesando...</p>
+            </div>
+            <!-- Barra de Estado -->
+            <div id="status-bar" class="absolute bottom-0 left-0 bg-black bg-opacity-60 text-white text-xs p-1 rounded-tr z-10 pointer-events-none">Zoom: <span id="zoom-level">100</span>% | Herramienta: <span id="current-tool-status">Ninguna</span> | Rueda=Zoom, Espacio+Arrastrar=Mover</div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Cargado - XocoStudio Background Remover (Completo + Color)");
+
+            // --- DOM Elements ---
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const pasteBtn = document.getElementById('paste-btn');
+            const pasteSupportWarning = document.getElementById('paste-support-warning');
+            const filenameDisplay = document.getElementById('filename-display');
+            const canvasOuterContainer = document.getElementById('canvas-outer-container');
+            const canvasInnerContainer = document.getElementById('canvas-inner-container');
+            const canvas = document.getElementById('image-canvas');
+            const previewCanvas = document.getElementById('preview-canvas');
+            const canvasPlaceholder = document.getElementById('canvas-placeholder');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const toolsSection = document.getElementById('tools-section');
+            const exportSection = document.getElementById('export-section');
+            // Tool Buttons
+            const colorPickerBtn = document.getElementById('color-picker-tool'); // NEW
+            const brushBtn = document.getElementById('brush-tool');
+            const eraserBtn = document.getElementById('eraser-tool');
+            const lineBtn = document.getElementById('line-tool');
+            const eraserLineBtn = document.getElementById('eraser-line-tool');
+            const continuousKeepLineBtn = document.getElementById('continuous-keep-line-tool');
+            const continuousEraserLineBtn = document.getElementById('continuous-eraser-line-tool');
+            const removeEdgeBgBtn = document.getElementById('remove-edge-bg-btn');
+            const removeInnerHoleBtn = document.getElementById('remove-inner-hole-btn');
+            const applyColorRemovalBtn = document.getElementById('apply-color-removal-btn'); // NEW
+            // Tool Options
+            const brushOptionsSection = document.getElementById('brush-options-section');
+            const featherOptionDiv = document.getElementById('feather-option');
+            const shapeOptionDiv = document.getElementById('shape-option');
+            const brushSizeSlider = document.getElementById('brush-size');
+            const brushSizeValue = document.getElementById('brush-size-value');
+            const brushFeatherSlider = document.getElementById('brush-feather');
+            const brushFeatherValue = document.getElementById('brush-feather-value');
+            const brushOpacitySlider = document.getElementById('brush-opacity');
+            const brushOpacityValue = document.getElementById('brush-opacity-value');
+            const shapeCircleBtn = document.getElementById('brush-shape-circle');
+            const shapeSquareBtn = document.getElementById('brush-shape-square');
+            const edgeColorToleranceSlider = document.getElementById('edge-color-tolerance');
+            const edgeColorToleranceValueSpan = document.getElementById('edge-color-tolerance-value');
+            // Color Picker UI
+            const selectedColorsSection = document.getElementById('selected-colors-section'); // NEW
+            const selectedColorsListDiv = document.getElementById('selected-colors-list'); // NEW
+            const noColorsSelectedP = document.getElementById('no-colors-selected'); // NEW
+            // Edit Actions
+            const undoBtn = document.getElementById('undo-btn');
+            const undoCountSpan = document.getElementById('undo-count');
+            const resetBtn = document.getElementById('reset-btn');
+            // Export/Copy
+            const exportBtn = document.getElementById('export-btn');
+            const copyBtn = document.getElementById('copy-btn');
+            const clipboardSupportWarning = document.getElementById('clipboard-support-warning');
+            // Preview Background
+            const previewBgSection = document.getElementById('preview-bg-section');
+            const previewBgToggleBtn = document.getElementById('preview-bg-toggle-btn');
+            const previewBgIcon = document.getElementById('preview-bg-icon');
+            const previewBgColorInput = document.getElementById('preview-bg-color-input');
+            // Overlays & Status
+            const zoomLevelSpan = document.getElementById('zoom-level');
+            const currentToolSpan = document.getElementById('current-tool-status');
+            const processingOverlay = document.getElementById('processing-overlay');
+            const processingStatusText = document.getElementById('processing-status-text');
+
+            // --- State Variables ---
+            let ctx = null;
+            let previewCtx = null;
+            let originalImage = null;
+            let originalImageDataCache = null; // Cache for faster original pixel access
+            let imageFilename = 'imagen';
+            let maskCanvas = null; // Offscreen canvas for the mask
+            let maskCtx = null;
+            let isDrawing = false;
+            let lastX = 0, lastY = 0;
+            let history = [];
+            const MAX_HISTORY = 30;
+            let currentTool = 'eraser'; // Default tool
+            let brushOptions = { size: 50, feather: 0.1, opacity: 1.0, shape: 'circle' };
+            let zoomLevel = 1.0;
+            let panX = 0, panY = 0;
+            let isPanning = false;
+            let panStartX = 0, panStartY = 0;
+            let isSpacePressed = false;
+            let isDrawingLine = false;
+            let lineStartX = 0, lineStartY = 0;
+            let isDrawingContinuousLine = false; // Flag for continuous line tool
+            let lastContinuousLinePoint = null; // Last point for continuous line
+            let currentMousePos = { x: 0, y: 0 };
+            let isClipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.write);
+            let isClipboardReadSupported = !!(navigator.clipboard && navigator.clipboard.read);
+            let isFloodFilling = false; // Flag for background/hole removal process
+            let cancelFloodFillRequest = false; // Flag to signal cancellation
+            let waitingForInnerHoleClick = false; // Flag for hole remover tool mode
+            let isColorPickingActive = false; // NEW: Flag for color picker mode
+            let selectedBackgroundColors = []; // NEW: Array to store {r, g, b} objects
+            let isProcessingColorRemoval = false; // NEW: Flag for color removal process
+
+            // Preview Background State
+            let previewMode = 'checkerboard'; // 'checkerboard' or 'solid'
+            let previewBackgroundColor = '#FFFFFF'; // Default solid color
+
+            // --- Performance Throttling ---
+            let lastRenderTime = 0;
+            const RENDER_THROTTLE = 16; // Approx 60fps
+
+            // --- Verification ---
+             if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn || !continuousKeepLineBtn || !continuousEraserLineBtn
+                || !canvasOuterContainer || !canvasInnerContainer || !previewBgSection || !previewBgToggleBtn || !previewBgIcon || !previewBgColorInput
+                || !toolsSection || !exportSection || !colorPickerBtn || !applyColorRemovalBtn || !selectedColorsSection || !selectedColorsListDiv) { // Added new elements
+                console.error("¡ERROR CRÍTICO! No se encontraron uno o más elementos esenciales del DOM. Verifica los IDs.");
+                alert("Error: La aplicación no pudo iniciarse correctamente.");
+                return;
+            }
+            console.log("Elementos DOM principales OK.");
+
+            // --- Initialization ---
+            setActiveTool('eraser'); // Set default tool visually
+            updateToolOptionsDisplay(); // Update sliders/values for default tool
+            setupImageLoadingListeners();
+            setupInteractionListeners();
+            setupToolControlListeners();
+            setupPreviewBackgroundListeners();
+            checkClipboardSupport();
+            updatePreviewBackground();
+            updateActionButtonsState(); // Set initial button enable/disable state
+            updateSelectedColorsUI(); // Initialize color list UI
+            console.log("Inicialización completada.");
+
+            // --- Helper Functions ---
+
+            // --- Helper Function to Cancel Continuous Line ---
+            // **** THIS FUNCTION WAS MISSING ****
+            function cancelContinuousLineDrawing(silent = false) {
+                if (isDrawingContinuousLine) {
+                    if (!silent) console.log("Cancelando trazo continuo.");
+                    isDrawingContinuousLine = false;
+                    lastContinuousLinePoint = null;
+                    clearPreviewCanvas();
+                    updateStatusBar();
+                    canvasOuterContainer.style.cursor = getToolCursor();
+                    updateActionButtonsState();
+                    // Redraw tool preview at current mouse position after cancelling
+                    if (!isColorPickingActive) { // Avoid drawing preview if switching to color picker
+                        drawToolPreview(currentMousePos.x, currentMousePos.y);
+                    }
+                    return true; // Indicate something was cancelled
+                }
+                return false; // Nothing to cancel
+            }
+
+            // Helper Function to Cancel Actions
+            function cancelCurrentAction(silent = false) {
+                let cancelledSomething = false;
+                 // 1. Cancel Color Picker Mode
+                 if (isColorPickingActive) {
+                     if (!silent) console.log("Modo 'Seleccionar Color' cancelado.");
+                     // Don't change tool here, let setActiveTool handle it
+                     isColorPickingActive = false; // Just reset the flag
+                     canvasOuterContainer.style.cursor = getToolCursor(); // Update cursor
+                     updateSelectedColorsUI(); // Hide color list if cancelling picker
+                     updateActionButtonsState(); // Update buttons
+                     cancelledSomething = true;
+                 }
+                // 2. Cancel Hole Remover Mode
+                if (waitingForInnerHoleClick) {
+                    cancelInnerHoleClickMode(silent); // Uses its own logic for UI restore
+                     if (!silent) console.log("Modo 'Eliminar Hueco' cancelado.");
+                    cancelledSomething = true;
+                }
+                // 3. Cancel Simple Line Drawing
+                if (isDrawingLine) {
+                    isDrawingLine = false;
+                    clearPreviewCanvas();
+                    updateActionButtonsState();
+                     canvasOuterContainer.style.cursor = getToolCursor();
+                    if (!silent) console.log("Línea simple cancelada.");
+                    cancelledSomething = true;
+                }
+                // 4. Cancel Continuous Line Drawing (uses the restored function)
+                if (cancelContinuousLineDrawing(silent)) {
+                    // Log message handled inside cancelContinuousLineDrawing
+                    cancelledSomething = true;
+                }
+                 // 5. Cancel Brush/Eraser Drawing
+                 if (isDrawing) {
+                     isDrawing = false;
+                     updateActionButtonsState();
+                     if (!silent) console.log("Dibujo con pincel/borrador interrumpido.");
+                     // No history save here as it wasn't a clean end
+                     cancelledSomething = true;
+                     canvasOuterContainer.style.cursor = getToolCursor(); // Restore cursor
+                 }
+
+
+                 // If any action was cancelled, redraw the normal tool preview unless picking colors
+                 if(cancelledSomething && !silent && !isColorPickingActive) {
+                     drawToolPreview(currentMousePos.x, currentMousePos.y);
+                 }
+                 return cancelledSomething;
+            }
+
+             // Helper Function to Simulate Escape Key Press Logic
+            function simulateEscapeKeyPressLogic() {
+                // Order matters: cancel more specific modes first
+                let cancelled = false;
+                // Use the unified cancel function
+                 if (isDrawingLine || isDrawingContinuousLine || waitingForInnerHoleClick || isColorPickingActive || isDrawing) {
+                    cancelled = cancelCurrentAction(true); // Cancel silently
+                    if (cancelled) {
+                        console.log("Acción cancelada por tecla Esc (Simulado).");
+                        // Redraw preview only if not in color picking mode after cancellation
+                        if (!isColorPickingActive) {
+                             drawToolPreview(currentMousePos.x, currentMousePos.y);
+                        }
+                    }
+                }
+                return cancelled;
+            }
+
+            // Helper to check if the app is idle
+            function isIdle() {
+                 return !isDrawing && !isDrawingLine && !isDrawingContinuousLine && !waitingForInnerHoleClick && !isColorPickingActive && !isFloodFilling && !isProcessingColorRemoval && !isPanning;
+            }
+
+
+            // --- Setup Functions ---
+            function setupImageLoadingListeners() {
+                console.log("Configurando listeners de carga...");
+                // Drag & Drop
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('border-blue-500', 'bg-blue-50');
+                });
+                dropZone.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                });
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file?.type.startsWith('image/')) {
+                        handleFile(file);
+                    } else if (file) {
+                        alert('Por favor, suelta un archivo de imagen válido.');
+                    }
+                });
+                // File Input Button
+                uploadBtn.addEventListener('click', () => fileInput.click());
+                // Paste Button
+                pasteBtn.addEventListener('click', handlePasteButtonClick);
+                // File Input Change
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files?.[0];
+                    if (file?.type.startsWith('image/')) {
+                        handleFile(file);
+                        e.target.value = null;
+                    } else if (file) {
+                        alert('Por favor, selecciona un archivo de imagen válido.');
+                    }
+                });
+                 // Global Paste Listener
+                window.addEventListener('paste', (e) => {
+                    const activeElement = document.activeElement;
+                    if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable) {
+                        return;
+                    }
+                    if (handleClipboardPaste(e.clipboardData)) {
+                        e.preventDefault();
+                    }
+                });
+                 console.log("Listeners de carga añadidos.");
+            }
+
+            function setupInteractionListeners() {
+                window.addEventListener('keydown', handleKeyDown);
+                window.addEventListener('keyup', handleKeyUp);
+                canvasOuterContainer.addEventListener('mousedown', handleInteractionStart);
+                canvasOuterContainer.addEventListener('mousemove', handleInteractionMove);
+                window.addEventListener('mouseup', handleInteractionEnd);
+
+                canvasOuterContainer.addEventListener('touchstart', (e) => handleInteractionStart(e.touches[0]), { passive: false });
+                canvasOuterContainer.addEventListener('touchmove', (e) => handleInteractionMove(e.touches[0]), { passive: false });
+                window.addEventListener('touchend', (e) => handleInteractionEnd(e.changedTouches[0]));
+                window.addEventListener('touchcancel', (e) => handleInteractionEnd(e.changedTouches[0]));
+
+                canvasOuterContainer.addEventListener('wheel', handleWheelZoom, { passive: false });
+
+                 canvasOuterContainer.addEventListener('mouseleave', () => {
+                    if (!isDrawingLine && !isDrawingContinuousLine && !isColorPickingActive) { // Don't clear preview if picking color
+                        clearPreviewCanvas();
+                    }
+                });
+            }
+
+            function setupToolControlListeners() {
+                console.log("Configurando listeners de herramientas...");
+                // Tool Selection Buttons
+                colorPickerBtn.addEventListener('click', () => setActiveTool('color-picker')); // NEW
+                brushBtn.addEventListener('click', () => setActiveTool('brush'));
+                eraserBtn.addEventListener('click', () => setActiveTool('eraser'));
+                lineBtn.addEventListener('click', () => setActiveTool('line'));
+                eraserLineBtn.addEventListener('click', () => setActiveTool('eraser-line'));
+                continuousKeepLineBtn.addEventListener('click', () => setActiveTool('continuous-keep-line'));
+                continuousEraserLineBtn.addEventListener('click', () => setActiveTool('continuous-eraser-line'));
+
+                // Brush/Line Options Sliders
+                brushSizeSlider.addEventListener('input', (e) => {
+                    brushOptions.size = parseInt(e.target.value);
+                    updateToolOptionsDisplay();
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                });
+                brushFeatherSlider.addEventListener('input', (e) => {
+                    brushOptions.feather = parseFloat(e.target.value);
+                    updateToolOptionsDisplay();
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                });
+                brushOpacitySlider.addEventListener('input', (e) => {
+                    brushOptions.opacity = parseFloat(e.target.value);
+                    updateToolOptionsDisplay();
+                });
+
+                // Brush Shape Buttons
+                shapeCircleBtn.addEventListener('click', () => {
+                    brushOptions.shape = 'circle';
+                    updateToolOptionsDisplay();
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                });
+                shapeSquareBtn.addEventListener('click', () => {
+                    brushOptions.shape = 'square';
+                    updateToolOptionsDisplay();
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                });
+
+                // Action Buttons
+                undoBtn.addEventListener('click', undo);
+                resetBtn.addEventListener('click', () => {
+                    if (!originalImage || history.length <= 1) return;
+                    if (confirm('¿Resetear todas las ediciones? Esta acción no se puede deshacer.')) {
+                        cancelCurrentAction(); // Cancel any ongoing actions first
+                        resetMask();
+                        selectedBackgroundColors = []; // Also reset selected colors
+                        updateSelectedColorsUI();
+                    }
+                });
+                exportBtn.addEventListener('click', exportImage);
+                copyBtn.addEventListener('click', copyImageToClipboard);
+
+                 // Tolerance Slider (for Auto/Hole/Color)
+                 edgeColorToleranceSlider.addEventListener('input', (e) => {
+                    edgeColorToleranceValueSpan.textContent = e.target.value;
+                });
+
+                 // Auto / Hole / Color Remover Buttons
+                 removeEdgeBgBtn.addEventListener('click', () => {
+                    if (!isIdle()) cancelCurrentAction(); // Cancel other actions first only if not idle
+                    if (isFloodFilling) {
+                        console.log("%cSolicitando cancelación de Flood Fill...", 'color: orange; font-weight: bold;');
+                        cancelFloodFillRequest = true;
+                        processingStatusText.textContent = "Cancelando...";
+                        showButtonFeedback(removeEdgeBgBtn, 'cancelling', 'Cancelando...', 60000);
+                    } else if (isIdle()) { // Start only if idle
+                        handleRemoveBackgroundByFloodFill();
+                    }
+                });
+                 removeInnerHoleBtn.addEventListener('click', () => {
+                    if (isFloodFilling || isProcessingColorRemoval) return;
+
+                    if (waitingForInnerHoleClick) {
+                        cancelInnerHoleClickMode();
+                    } else {
+                        cancelCurrentAction(); // Cancel other drawing modes first
+                        activateInnerHoleClickMode();
+                    }
+                });
+                // NEW: Listener for Apply Color Removal Button
+                applyColorRemovalBtn.addEventListener('click', () => {
+                    if (!originalImage || selectedBackgroundColors.length === 0 || isFloodFilling || isProcessingColorRemoval) return;
+                    if (!isIdle()) cancelCurrentAction(); // Ensure other modes are off only if not idle
+                    if (isIdle()) { // Start only if idle
+                         applyColorRemoval();
+                    }
+                });
+
+                // NEW: Listener for removing selected colors (event delegation)
+                selectedColorsListDiv.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('remove-color-btn')) {
+                        const r = parseInt(e.target.dataset.r, 10);
+                        const g = parseInt(e.target.dataset.g, 10);
+                        const b = parseInt(e.target.dataset.b, 10);
+                        removeSelectedColor(r, g, b);
+                    }
+                });
+
+                 console.log("Listeners de herramientas añadidos.");
+            }
+
+            function setupPreviewBackgroundListeners() {
+                console.log("Configurando listeners de fondo de previsualización...");
+                if (!previewBgToggleBtn || !previewBgColorInput) {
+                    console.error("Faltan elementos de control de fondo de previsualización.");
+                    return;
+                }
+
+                previewBgToggleBtn.addEventListener('click', () => {
+                    if (!originalImage) return;
+                    previewMode = (previewMode === 'checkerboard') ? 'solid' : 'checkerboard';
+                    console.log("Modo de fondo cambiado a:", previewMode);
+                    updatePreviewBackground();
+                });
+
+                previewBgColorInput.addEventListener('input', (e) => {
+                    previewBackgroundColor = e.target.value;
+                    if (previewMode === 'solid' && originalImage) {
+                        console.log("Color de fondo sólido actualizado:", previewBackgroundColor);
+                        updatePreviewBackground();
+                    }
+                });
+                 console.log("Listeners de fondo de previsualización añadidos.");
+            }
+
+
+            // --- Core Logic ---
+            function handleFile(file) {
+                console.log('>>> handleFile:', file?.name);
+                cancelCurrentAction(); // Cancel any pending actions
+
+                if (!file?.type?.startsWith('image/')) {
+                    alert('Archivo no válido. Selecciona una imagen.');
+                    console.error('Tipo inválido:', file?.type);
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onloadstart = () => {
+                    console.log('   reader.onloadstart');
+                    showLoadingState(file.name);
+                } ;
+
+                reader.onload = (e) => {
+                     console.log('   reader.onload');
+                    if (!e.target?.result) {
+                         handleLoadingError(file.name, 'Error al leer el archivo.');
+                        return;
+                     }
+
+                    originalImage = new Image();
+                    originalImage.onload = () => {
+                        console.log(`      originalImage.onload OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`);
+                        if (originalImage.naturalWidth === 0 || originalImage.naturalHeight === 0) {
+                            handleLoadingError(file.name, 'La imagen tiene dimensiones inválidas (0x0).');
+                            originalImage = null;
+                            return;
+                        }
+                        initializeEditor(file.name, originalImage);
+                    };
+                    originalImage.onerror = (err) => {
+                        console.error('originalImage.onerror:', err);
+                        handleLoadingError(file.name, 'Error al decodificar la imagen. ¿Formato soportado?');
+                        originalImage = null;
+                    };
+                    originalImage.src = e.target.result;
+                };
+
+                reader.onerror = (err) => {
+                    console.error('reader.onerror:', err);
+                    handleLoadingError(file.name, 'Error de lectura del archivo.');
+                };
+
+                 try {
+                    reader.readAsDataURL(file);
+                 } catch (error) {
+                    console.error("Error llamando a readAsDataURL:", error);
+                    handleLoadingError(file.name, 'Error iniciando la lectura del archivo.');
+                 }
+            }
+
+            function showLoadingState(fileName) {
+                console.log("Mostrando estado de carga para:", fileName);
+                cancelCurrentAction();
+                loadingSpinner.classList.remove('hidden');
+                canvasPlaceholder.classList.add('hidden');
+                filenameDisplay.textContent = `Cargando: ${fileName}...`;
+                toolsSection.classList.add('hidden');
+                previewBgSection.classList.add('hidden');
+                exportSection.classList.add('hidden');
+                canvas.classList.add('hidden');
+                previewCanvas.classList.add('hidden');
+                originalImage = null;
+                originalImageDataCache = null;
+                ctx = previewCtx = maskCtx = null;
+                history = [];
+                selectedBackgroundColors = []; // Reset selected colors
+                updateSelectedColorsUI();
+                updateActionButtonsState();
+            }
+
+            function handleLoadingError(fileName, message) {
+                console.error(`Error cargando ${fileName || 'imagen'}: ${message}`);
+                cancelCurrentAction();
+                alert(`Error al cargar "${fileName || 'la imagen'}":\n${message}`);
+                loadingSpinner.classList.add('hidden');
+                canvasPlaceholder.classList.remove('hidden');
+                filenameDisplay.textContent = `Error al cargar`;
+                toolsSection.classList.add('hidden');
+                previewBgSection.classList.add('hidden');
+                exportSection.classList.add('hidden');
+                originalImage = null;
+                originalImageDataCache = null;
+                ctx = previewCtx = maskCtx = null;
+                history = [];
+                 selectedBackgroundColors = [];
+                updateSelectedColorsUI();
+                updateActionButtonsState();
+            }
+
+            function initializeEditor(fileName, loadedImage) {
+                console.log(">>> initializeEditor:", fileName);
+                cancelCurrentAction();
+
+                if (!loadedImage || !loadedImage.naturalWidth || !loadedImage.naturalHeight) {
+                     handleLoadingError(fileName, "Los datos de la imagen cargada son inválidos.");
+                     return;
+                 }
+
+                imageFilename = fileName.replace(/\.[^/.]+$/, "") || 'imagen_editada';
+                filenameDisplay.textContent = `Editando: ${fileName} (${loadedImage.naturalWidth}x${loadedImage.naturalHeight})`;
+
+                 try {
+                    ctx = canvas.getContext('2d', { willReadFrequently: false });
+                    previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
+                    if (!ctx || !previewCtx) throw new Error("Uno o ambos contextos principales (canvas, previewCanvas) son null.");
+                    console.log("   Contextos ctx y previewCtx obtenidos.");
+                } catch (e) {
+                    console.error("¡ERROR FATAL obteniendo contextos principales!:", e);
+                    handleLoadingError(fileName, "Error interno: No se pudo crear el contexto gráfico necesario.");
+                    return;
+                }
+
+                if (!setupCanvases(loadedImage)) {
+                    handleLoadingError(fileName, "Error configurando los lienzos (canvas).");
+                    return;
+                }
+
+                cacheOriginalImageData();
+
+                resetMask(); // Includes initial history save
+
+                 selectedBackgroundColors = []; // Reset selected colors for new image
+                 updateSelectedColorsUI();
+
+                centerAndFitImage();
+                requestRender();
+
+                toolsSection.classList.remove('hidden');
+                previewBgSection.classList.remove('hidden');
+                exportSection.classList.remove('hidden');
+                canvas.classList.remove('hidden');
+                previewCanvas.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+                canvasPlaceholder.classList.add('hidden');
+
+                setActiveTool('eraser'); // Default tool after load
+                updatePreviewBackground();
+                updateActionButtonsState();
+
+                console.log("<<< initializeEditor completado.");
+            }
+
+            function setupCanvases(img) {
+                 console.log(">>> setupCanvases");
+                if (!img?.naturalWidth || !img?.naturalHeight) return false;
+                 if (!canvas || !previewCanvas || !canvasInnerContainer) return false;
+
+                const w = img.naturalWidth;
+                const h = img.naturalHeight;
+
+                canvas.width = w; canvas.height = h;
+                previewCanvas.width = w; previewCanvas.height = h;
+                canvasInnerContainer.style.width = `${w}px`;
+                canvasInnerContainer.style.height = `${h}px`;
+
+                 try {
+                    maskCanvas = document.createElement('canvas');
+                    maskCanvas.width = w; maskCanvas.height = h;
+                    maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+                    if (!maskCtx) throw new Error("maskCtx es null después de getContext.");
+                    console.log("   Contexto maskCtx (offscreen) creado.");
+                 } catch (e) {
+                    alert("Error fatal: No se pudo crear el lienzo interno para la máscara de edición.");
+                    console.error("   Error creando maskCtx:", e);
+                    maskCanvas = maskCtx = null;
+                    return false;
+                 }
+                console.log(`   Canvases configurados a ${w}x${h}`);
+                return true;
+            }
+
+             function cacheOriginalImageData() {
+                 if (!originalImage || !canvas || !maskCanvas) {
+                     originalImageDataCache = null;
+                     console.warn("No se pudo cachear ImageData original: faltan elementos necesarios.");
+                     return;
+                 }
+                 console.log("Cacheando ImageData original...");
+                 const tempCanvas = document.createElement('canvas');
+                 tempCanvas.width = originalImage.naturalWidth;
+                 tempCanvas.height = originalImage.naturalHeight;
+                 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+                 if (!tempCtx) {
+                     console.error("Error creando contexto temporal para cachear ImageData.");
+                     originalImageDataCache = null;
+                     return;
+                 }
+                 try {
+                     tempCtx.drawImage(originalImage, 0, 0);
+                     originalImageDataCache = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                     console.log("   ImageData original cacheada OK.");
+                 } catch (e) {
+                     console.error("Error al obtener ImageData original para cache (¿Problema de CORS?):", e);
+                     alert("Advertencia: No se pudo acceder a los píxeles originales de la imagen (posiblemente por restricciones de seguridad CORS). Las herramientas automáticas y de selección de color podrían no funcionar correctamente.");
+                     originalImageDataCache = null;
+                 }
+             }
+
+            function centerAndFitImage() {
+                if (!originalImage || !canvasOuterContainer) return;
+                const imgWidth = originalImage.naturalWidth;
+                const imgHeight = originalImage.naturalHeight;
+                const contWidth = canvasOuterContainer.clientWidth;
+                const contHeight = canvasOuterContainer.clientHeight;
+                zoomLevel = Math.min(1, Math.min(contWidth / imgWidth, contHeight / imgHeight) * 0.95);
+                panX = (contWidth - imgWidth * zoomLevel) / 2;
+                panY = (contHeight - imgHeight * zoomLevel) / 2;
+                updateTransform();
+                updateStatusBar();
+            }
+
+            function resetMask() {
+                if (!maskCtx || !maskCanvas || !originalImage) return;
+                console.log("Reseteando máscara a blanco.");
+                maskCtx.fillStyle = 'white';
+                maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+                history = [];
+                saveStateToHistory();
+                updateActionButtonsState();
+                requestRender();
+            }
+
+            // --- Rendering & Previews ---
+            function requestRender() {
+                const now = performance.now();
+                if (now - lastRenderTime >= RENDER_THROTTLE) {
+                    renderCanvas();
+                    lastRenderTime = now;
+                }
+            }
+
+            function renderCanvas() {
+                if (!ctx || !originalImage || !maskCanvas) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(originalImage, 0, 0);
+                ctx.globalCompositeOperation = 'destination-in';
+                ctx.drawImage(maskCanvas, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            function clearPreviewCanvas() {
+                if (previewCtx) {
+                    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                }
+            }
+
+            function drawToolPreview(imageX, imageY) {
+                 clearPreviewCanvas();
+                 // Don't draw preview if busy OR if color picking is active
+                 if (!previewCtx || !originalImage || isPanning || isFloodFilling || isProcessingColorRemoval || isColorPickingActive) {
+                     return;
+                 }
+
+                 // Brush/Eraser Preview
+                 if (currentTool === 'brush' || currentTool === 'eraser') {
+                     drawBrushPreview(imageX, imageY);
+                 }
+                 // Simple Line Preview
+                 else if (isDrawingLine && (currentTool === 'line' || currentTool === 'eraser-line')) {
+                     drawSimpleLineMarker(lineStartX, lineStartY);
+                     drawSimpleLinePreview(lineStartX, lineStartY, imageX, imageY);
+                 }
+                 // Continuous Line Preview
+                 else if (isDrawingContinuousLine && (currentTool === 'continuous-keep-line' || currentTool === 'continuous-eraser-line')) {
+                     if (lastContinuousLinePoint) {
+                         drawContinuousLineMarker(lastContinuousLinePoint.x, lastContinuousLinePoint.y);
+                         drawContinuousLinePreview(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY);
+                     }
+                 }
+                 // Crosshair for Line Tools (when not actively drawing)
+                 else if (['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line'].includes(currentTool)) {
+                     drawCrosshairPreview(imageX, imageY);
+                 }
+                 // NO preview needed for color-picker (cursor indicates mode)
+            }
+
+            function drawBrushPreview(imageX, imageY) {
+                if (!previewCtx || !originalImage) return;
+                const size = brushOptions.size;
+                const featherAmount = size * brushOptions.feather;
+                const solidRadius = Math.max(0, size / 2 - featherAmount / 2);
+                const totalRadius = size / 2;
+                previewCtx.save();
+                previewCtx.globalAlpha = 0.6;
+                const previewColor = (currentTool === 'eraser') ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+                const outlineColor = 'rgba(255, 255, 255, 0.9)';
+                if (brushOptions.shape === 'circle') {
+                    const gradient = previewCtx.createRadialGradient(imageX, imageY, solidRadius, imageX, imageY, totalRadius);
+                    gradient.addColorStop(0, previewColor);
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    previewCtx.fillStyle = gradient;
+                    previewCtx.beginPath();
+                    previewCtx.arc(imageX, imageY, totalRadius, 0, Math.PI * 2);
+                    previewCtx.fill();
+                    previewCtx.strokeStyle = outlineColor;
+                    previewCtx.lineWidth = 1 / zoomLevel;
+                    previewCtx.stroke();
+                } else { // Square
+                    const halfSize = size / 2;
+                    previewCtx.fillStyle = previewColor;
+                    previewCtx.fillRect(imageX - halfSize, imageY - halfSize, size, size);
+                    previewCtx.strokeStyle = outlineColor;
+                    previewCtx.lineWidth = 1 / zoomLevel;
+                    previewCtx.strokeRect(imageX - halfSize, imageY - halfSize, size, size);
+                }
+                previewCtx.restore();
+            }
+            function drawSimpleLineMarker(imageX, imageY) {
+                 if (!previewCtx) return;
+                 const isKeepTool = currentTool === 'line';
+                 previewCtx.fillStyle = isKeepTool ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)';
+                 previewCtx.beginPath();
+                 previewCtx.arc(imageX, imageY, 5 / zoomLevel, 0, Math.PI * 2);
+                 previewCtx.fill();
+            }
+            function drawSimpleLinePreview(startX, startY, endX, endY) {
+                if (!previewCtx) return;
+                const isKeepTool = currentTool === 'line';
+                previewCtx.save();
+                previewCtx.beginPath();
+                previewCtx.moveTo(startX, startY);
+                previewCtx.lineTo(endX, endY);
+                previewCtx.strokeStyle = isKeepTool ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+                previewCtx.lineWidth = brushOptions.size;
+                previewCtx.lineCap = 'round';
+                previewCtx.stroke();
+                previewCtx.restore();
+            }
+            function drawContinuousLineMarker(imageX, imageY) {
+                if (!previewCtx) return;
+                const isKeepTool = currentTool === 'continuous-keep-line';
+                previewCtx.fillStyle = isKeepTool ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+                previewCtx.beginPath();
+                previewCtx.arc(imageX, imageY, 4 / zoomLevel, 0, Math.PI * 2);
+                previewCtx.fill();
+            }
+            function drawContinuousLinePreview(startX, startY, endX, endY) {
+                 if (!previewCtx) return;
+                 const isKeepTool = currentTool === 'continuous-keep-line';
+                 previewCtx.save();
+                 previewCtx.beginPath();
+                 previewCtx.moveTo(startX, startY);
+                 previewCtx.lineTo(endX, endY);
+                 previewCtx.strokeStyle = isKeepTool ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+                 previewCtx.lineWidth = brushOptions.size;
+                 previewCtx.lineCap = 'round';
+                 previewCtx.stroke();
+                 previewCtx.restore();
+            }
+            function drawCrosshairPreview(imageX, imageY) {
+                 if (!previewCtx) return;
+                 const crossSize = 10 / zoomLevel;
+                 previewCtx.save();
+                 previewCtx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                 previewCtx.lineWidth = 1 / zoomLevel;
+                 previewCtx.beginPath();
+                 previewCtx.moveTo(imageX - crossSize, imageY);
+                 previewCtx.lineTo(imageX + crossSize, imageY);
+                 previewCtx.moveTo(imageX, imageY - crossSize);
+                 previewCtx.lineTo(imageX, imageY + crossSize);
+                 previewCtx.stroke();
+                 previewCtx.restore();
+            }
+
+
+            // --- Mask Modification ---
+            function applyMaskModification(drawX, drawY, tool, options) {
+                if (!maskCtx || (tool !== 'brush' && tool !== 'eraser')) return;
+                const isEraser = tool === 'eraser';
+                maskCtx.save();
+                maskCtx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+                const size = options.size;
+                const halfSize = size / 2;
+                const feather = options.feather;
+                const opacity = options.opacity;
+                const color = isEraser ? '0,0,0' : '255,255,255';
+                if (options.shape === 'circle') {
+                    const solidRadius = Math.max(0, halfSize * (1 - feather));
+                    const gradient = maskCtx.createRadialGradient(drawX, drawY, solidRadius, drawX, drawY, halfSize);
+                    gradient.addColorStop(0, `rgba(${color}, ${opacity})`);
+                    gradient.addColorStop(1, `rgba(${color}, 0)`);
+                    maskCtx.fillStyle = gradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(drawX, drawY, halfSize, 0, Math.PI * 2);
+                    maskCtx.fill();
+                } else { // Square
+                    maskCtx.fillStyle = `rgba(${color}, ${opacity})`;
+                    maskCtx.fillRect(drawX - halfSize, drawY - halfSize, size, size);
+                }
+                maskCtx.restore();
+            }
+
+            function drawLineOnMask(imgX1, imgY1, imgX2, imgY2, tool, options) {
+                 if (!maskCtx) return;
+                 const isEraserTool = tool === 'eraser' || tool === 'eraser-line' || tool === 'continuous-eraser-line';
+                 const size = options.size;
+                 const opacity = options.opacity;
+                 maskCtx.save();
+                 maskCtx.globalCompositeOperation = isEraserTool ? 'destination-out' : 'source-over';
+                 maskCtx.beginPath();
+                 maskCtx.moveTo(imgX1, imgY1);
+                 maskCtx.lineTo(imgX2, imgY2);
+                 maskCtx.lineWidth = size;
+                 maskCtx.lineCap = 'round';
+                 maskCtx.lineJoin = 'round';
+                 const color = isEraserTool ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+                 maskCtx.strokeStyle = color;
+                 maskCtx.stroke();
+                 maskCtx.restore();
+                 requestRender();
+            }
+
+
+            // --- Interaction Handling ---
+            function getInteractionPos(evt) {
+                 if (!canvasOuterContainer) return { screenX:0, screenY:0, imageX: 0, imageY: 0 };
+                const rect = canvasOuterContainer.getBoundingClientRect();
+                const clientX = evt.clientX ?? evt.pageX ?? 0;
+                const clientY = evt.clientY ?? evt.pageY ?? 0;
+                const screenX = clientX - rect.left;
+                const screenY = clientY - rect.top;
+                const imageX = (screenX - panX) / zoomLevel;
+                const imageY = (screenY - panY) / zoomLevel;
+                return { screenX, screenY, imageX, imageY };
+            }
+
+            function handleInteractionStart(e) {
+                 if (!originalImage || isFloodFilling || isProcessingColorRemoval) return; // Ignore if busy
+                 if (e.preventDefault && e.cancelable) e.preventDefault();
+
+                 const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
+
+                 // --- Special Modes ---
+                 // 0. Color Picker Active? (Highest priority after busy checks)
+                 if (isColorPickingActive) {
+                     pickColorAt(imageX, imageY); // Attempt to pick color
+                     return; // Don't process as other tools
+                 }
+                 // 1. Hole Remover Active?
+                 if (waitingForInnerHoleClick) {
+                     removeInnerHoleAt(imageX, imageY);
+                     return;
+                 }
+                 // 2. Panning Active?
+                 if (isSpacePressed) {
+                     isPanning = true;
+                     panStartX = screenX - panX;
+                     panStartY = screenY - panY;
+                     canvasOuterContainer.style.cursor = 'grabbing';
+                     return;
+                 }
+
+                 // --- Tool-Specific Actions ---
+                 switch (currentTool) {
+                    case 'line': case 'eraser-line':
+                         if (!isDrawingLine) {
+                             isDrawingLine = true; lineStartX = imageX; lineStartY = imageY;
+                             updateActionButtonsState(); drawToolPreview(imageX, imageY);
+                             canvasOuterContainer.style.cursor = 'crosshair';
+                         } else {
+                             drawLineOnMask(lineStartX, lineStartY, imageX, imageY, currentTool, brushOptions);
+                             saveStateToHistory(); isDrawingLine = false; clearPreviewCanvas();
+                             updateActionButtonsState(); canvasOuterContainer.style.cursor = getToolCursor();
+                             drawToolPreview(imageX, imageY);
+                         }
+                         break;
+                     case 'continuous-keep-line': case 'continuous-eraser-line':
+                          if (!isDrawingContinuousLine) {
+                             isDrawingContinuousLine = true; lastContinuousLinePoint = { x: imageX, y: imageY };
+                             updateActionButtonsState(); drawToolPreview(imageX, imageY);
+                             canvasOuterContainer.style.cursor = 'crosshair';
+                         } else {
+                             drawLineOnMask(lastContinuousLinePoint.x, lastContinuousLinePoint.y, imageX, imageY, currentTool, brushOptions);
+                             lastContinuousLinePoint = { x: imageX, y: imageY }; saveStateToHistory();
+                             drawToolPreview(imageX, imageY);
+                         }
+                         break;
+                     case 'brush': case 'eraser': default:
+                         // If user was drawing a line or picking color and clicks, cancel that first.
+                         if (isDrawingLine) { isDrawingLine = false; clearPreviewCanvas(); updateActionButtonsState(); }
+                         if (isColorPickingActive) { cancelCurrentAction(true); setActiveTool('eraser'); } // Cancel picker and switch tool
+                         cancelContinuousLineDrawing(true); // Cancel continuous line if active
+
+                         isDrawing = true; lastX = imageX; lastY = imageY;
+                         updateActionButtonsState();
+                         applyMaskModification(imageX, imageY, currentTool, brushOptions);
+                         requestRender();
+                         canvasOuterContainer.style.cursor = 'none';
+                         drawToolPreview(imageX, imageY);
+                         break;
+                 }
+            }
+
+            function handleInteractionMove(e) {
+                if (!originalImage) return;
+                const { screenX, screenY, imageX, imageY } = getInteractionPos(e);
+                currentMousePos = { x: imageX, y: imageY };
+
+                 const isBusy = isFloodFilling || isProcessingColorRemoval;
+
+                // 1. Panning?
+                if (isPanning) {
+                    panX = screenX - panStartX; panY = screenY - panStartY;
+                    updateTransform(); updateStatusBar();
+                }
+                // 2. Busy?
+                else if (isBusy) {
+                    canvasOuterContainer.style.cursor = getToolCursor(); // Use default busy cursor or similar
+                    clearPreviewCanvas();
+                }
+                // 3. Drawing brush stroke?
+                else if (isDrawing && (currentTool === 'brush' || currentTool === 'eraser')) {
+                    drawLineOnMask(lastX, lastY, imageX, imageY, currentTool, brushOptions);
+                    lastX = imageX; lastY = imageY;
+                    drawToolPreview(imageX, imageY); // Keep showing preview
+                    canvasOuterContainer.style.cursor = 'none'; // Keep cursor hidden
+                }
+                 // 4. Not panning or drawing - just update preview/cursor
+                 else {
+                     // Only draw preview if not in color picking mode
+                     if (!isColorPickingActive) {
+                         drawToolPreview(imageX, imageY);
+                     }
+                    canvasOuterContainer.style.cursor = getToolCursor(); // Update cursor (handles picker mode)
+                 }
+            }
+
+            function handleInteractionEnd(e) {
+                 if (isPanning) {
+                     isPanning = false;
+                     canvasOuterContainer.style.cursor = getToolCursor();
+                 }
+                 else if (isDrawing && (currentTool === 'brush' || currentTool === 'eraser')) {
+                     isDrawing = false;
+                     saveStateToHistory();
+                     updateActionButtonsState();
+                     canvasOuterContainer.style.cursor = 'none'; // Keep hidden until move
+                     drawToolPreview(currentMousePos.x, currentMousePos.y);
+                 }
+                 // No action needed on mouseup for color picker or line tools
+            }
+
+             function handleKeyDown(e) {
+                 const isFocusOnInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable;
+
+                 if (e.key === 'Escape') {
+                     const cancelled = simulateEscapeKeyPressLogic(); // Handles cancelling all modes/drawing
+                     if (cancelled || !isFocusOnInput) {
+                         e.preventDefault();
+                     }
+                     return;
+                 }
+
+                 // Check idle state *before* checking spacebar
+                 const isAppIdle = isIdle();
+
+                 // Spacebar for Panning
+                 if (e.key === ' ' && !isSpacePressed && !e.repeat && isAppIdle && !isFocusOnInput) {
+                     isSpacePressed = true;
+                     canvasOuterContainer.style.cursor = 'grab';
+                     e.preventDefault();
+                 }
+
+                 // Undo (Ctrl+Z / Cmd+Z)
+                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.repeat) {
+                    if (isAppIdle) { // Allow undo only if truly idle
+                         e.preventDefault();
+                         undo();
+                     } else {
+                        console.log("Undo bloqueado durante acción.");
+                     }
+                 }
+
+                 // Tool Shortcuts
+                 if (isAppIdle && !isFocusOnInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                     const keyLower = e.key.toLowerCase();
+                     if (['p', 'b', 'e', 'l', 'c', 'x', 'q', 'w'].includes(keyLower)) { // Added 'p'
+                         e.preventDefault();
+                     }
+
+                     switch(keyLower) {
+                         case 'p': setActiveTool('color-picker'); break; // NEW shortcut
+                         case 'b': setActiveTool('brush'); break;
+                         case 'e': setActiveTool('eraser'); break;
+                         case 'l': setActiveTool(e.shiftKey ? 'eraser-line' : 'line'); break;
+                         case 'c': setActiveTool('continuous-keep-line'); break;
+                         case 'x': setActiveTool('continuous-eraser-line'); break;
+                         case 'q': // Cancel -> Continuous Erase (No need to call cancel here, setActiveTool does it)
+                             setActiveTool('continuous-eraser-line');
+                             break;
+                         case 'w': // Cancel -> Continuous Keep
+                             setActiveTool('continuous-keep-line');
+                             break;
+                     }
+                 }
+             }
+
+             function handleKeyUp(e) {
+                 if (e.key === ' ') {
+                     isSpacePressed = false;
+                     // Restore cursor only if not currently panning
+                     if (!isPanning) {
+                         canvasOuterContainer.style.cursor = getToolCursor();
+                     }
+                     e.preventDefault(); // Prevent potential lingering effects
+                 }
+             }
+
+             function handleWheelZoom(e) {
+                 if (!originalImage || !isIdle()) return; // Use isIdle() check
+                 e.preventDefault(); // Prevent page scrolling
+                 const { screenX, screenY } = getInteractionPos(e); // Get mouse position relative to container
+                 const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1; // Zoom in if deltaY negative, out if positive
+                 zoomInOut(zoomFactor, screenX, screenY); // Apply zoom centered on mouse pointer
+             }
+
+            function zoomInOut(factor, pivotX, pivotY) {
+                if (!originalImage) return;
+                const currentZoom = zoomLevel;
+                const newZoomLevel = Math.max(0.1, Math.min(zoomLevel * factor, 15));
+                if (newZoomLevel === currentZoom) return; // No change
+                const dx = (pivotX - panX) * (newZoomLevel / currentZoom - 1);
+                const dy = (pivotY - panY) * (newZoomLevel / currentZoom - 1);
+                zoomLevel = newZoomLevel;
+                panX -= dx; panY -= dy;
+                updateTransform(); updateStatusBar();
+                clearPreviewCanvas();
+                // Draw preview only if not picking color
+                if (!isColorPickingActive) {
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                }
+            }
+
+            // --- Tool Management ---
+            function setActiveTool(tool) {
+                // Cancel previous action/mode unless switching *to* the same mode again
+                // OR if switching away from color picker
+                if (currentTool !== tool || currentTool === 'color-picker') {
+                     cancelCurrentAction(true); // Cancel previous action silently
+                }
+
+                currentTool = tool; // Set the new tool
+                isColorPickingActive = (tool === 'color-picker'); // Set/reset color picking flag
+
+                console.log("Herramienta activa:", tool);
+
+                // Update button visual states
+                const allManualButtons = [colorPickerBtn, brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn];
+                allManualButtons.forEach(btn => btn?.classList.remove('active-tool', 'active-color-picker'));
+
+                const activeBtn = document.getElementById(`${tool}-tool`);
+                if (activeBtn && allManualButtons.includes(activeBtn)) {
+                    if (tool === 'color-picker') {
+                        activeBtn.classList.add('active-color-picker');
+                    } else {
+                        activeBtn.classList.add('active-tool');
+                    }
+                }
+
+                 // Ensure hole remover doesn't look active unless it is
+                 if (tool !== 'hole-remover' && !waitingForInnerHoleClick) {
+                      removeInnerHoleBtn?.classList.remove('active-hole-remover');
+                 }
+
+                 // Show/Hide UI sections
+                 const isBrushOrEraser = tool === 'brush' || tool === 'eraser';
+                 const isAnyLineBasedTool = tool === 'line' || tool === 'eraser-line' || tool === 'continuous-keep-line' || tool === 'continuous-eraser-line';
+                 const showBrushOptionsPanel = isBrushOrEraser || isAnyLineBasedTool;
+
+                 // Show brush options only for relevant tools
+                 if(brushOptionsSection) brushOptionsSection.style.display = showBrushOptionsPanel ? 'block' : 'none';
+                 // Feather shown for brush/eraser AND color picker
+                 if(featherOptionDiv) featherOptionDiv.style.display = (isBrushOrEraser || isColorPickingActive) ? 'block' : 'none';
+                 // Opacity shown only for brush/eraser/lines
+                 if(brushOpacitySlider.parentElement) brushOpacitySlider.parentElement.style.display = (isBrushOrEraser || isAnyLineBasedTool) ? 'block' : 'none';
+                 // Shape shown only for brush/eraser
+                 if(shapeOptionDiv) shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none';
+                 // Color list shown only for color picker
+                 updateSelectedColorsUI(); // This handles showing/hiding the list section
+
+
+                // Update cursor, status bar, and redraw preview
+                canvasOuterContainer.style.cursor = getToolCursor();
+                updateStatusBar();
+                updateToolOptionsDisplay(); // Ensure sliders reflect current tool options
+                updateActionButtonsState();
+                clearPreviewCanvas();
+                // Don't draw preview when picking colors
+                if (!isColorPickingActive) {
+                    drawToolPreview(currentMousePos.x, currentMousePos.y);
+                }
+            }
+
+            function getToolCursor() {
+                if (isColorPickingActive) return 'crosshair'; // Use crosshair for picking (or eyedropper via CSS)
+                if (waitingForInnerHoleClick) return 'crosshair';
+                if (isSpacePressed && !isPanning) return 'grab';
+                if (isPanning) return 'grabbing';
+                if (currentTool === 'brush' || currentTool === 'eraser') return 'none'; // Hide cursor for brush tools
+                if (['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line'].includes(currentTool)) return 'crosshair'; // Crosshair for line tools
+                return 'default'; // Default cursor otherwise
+            }
+
+            function updateToolOptionsDisplay() {
+                if (brushSizeValue) brushSizeValue.textContent = brushOptions.size;
+                if (brushFeatherValue) brushFeatherValue.textContent = brushOptions.feather.toFixed(2);
+                if (brushOpacityValue) brushOpacityValue.textContent = brushOptions.opacity.toFixed(2);
+                if (shapeCircleBtn) shapeCircleBtn.classList.toggle('active-shape', brushOptions.shape === 'circle');
+                if (shapeSquareBtn) shapeSquareBtn.classList.toggle('active-shape', brushOptions.shape === 'square');
+            }
+
+            function updateTransform() {
+                if (canvasInnerContainer) {
+                    canvasInnerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+                }
+            }
+
+            function updateStatusBar() {
+                 if (zoomLevelSpan) zoomLevelSpan.textContent = Math.round(zoomLevel * 100);
+                 if (!currentToolSpan) return;
+
+                 let toolName = 'Ninguna';
+                 if (!originalImage) {
+                     toolName = 'Ninguna (Carga imagen)';
+                 } else if (waitingForInnerHoleClick) {
+                     toolName = 'Eliminar Hueco (Clic)';
+                 } else if (isColorPickingActive) {
+                     toolName = 'Seleccionar Color Fondo (P - Clic en imagen)';
+                 } else {
+                     switch (currentTool) {
+                         case 'brush': toolName = 'Pincel Conservar (B)'; break;
+                         case 'eraser': toolName = 'Borrador Eliminar (E)'; break;
+                         case 'line': toolName = 'Línea Conservar (L)'; break;
+                         case 'eraser-line': toolName = 'Línea Borrar (Shift+L)'; break;
+                         case 'continuous-keep-line': toolName = 'Trazo Conservar (C/W)'; break;
+                         case 'continuous-eraser-line': toolName = 'Trazo Borrar (X/Q)'; break;
+                         // color-picker handled above
+                     }
+                     if (isDrawingLine) toolName += ' (Dibujando línea...)';
+                     else if (isDrawingContinuousLine) toolName += ' (Dibujando trazo...)';
+                     else if (isDrawing) toolName += ' (Pintando...)';
+                     else if (isPanning) toolName += ' (Moviendo...)';
+                 }
+                 currentToolSpan.textContent = toolName;
+            }
+
+            function updateActionButtonsState() {
+                 const imageLoaded = !!originalImage && !!ctx && !!maskCtx;
+                 const canUndo = history.length > 1;
+                 const appIsIdle = isIdle(); // Use the helper function
+                 const canApplyColorRemoval = imageLoaded && selectedBackgroundColors.length > 0 && appIsIdle;
+
+                 // Edit Actions
+                 if (undoBtn) undoBtn.disabled = !(imageLoaded && canUndo && appIsIdle);
+                 if (undoCountSpan) undoCountSpan.textContent = Math.max(0, history.length - 1);
+                 if (resetBtn) resetBtn.disabled = !(imageLoaded && canUndo && appIsIdle);
+
+                 // Export/Copy Actions
+                 if (exportBtn) exportBtn.disabled = !(imageLoaded && appIsIdle);
+                 if (copyBtn) copyBtn.disabled = !(imageLoaded && isClipboardWriteSupported && appIsIdle);
+
+                 // Upload Actions
+                 if (pasteBtn) pasteBtn.disabled = !(isClipboardReadSupported && appIsIdle);
+
+                 // Manual Tool Buttons
+                 [colorPickerBtn, brushBtn, eraserBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn].forEach(btn => {
+                    if(btn) btn.disabled = !imageLoaded || !appIsIdle; // Disable if no image OR not idle
+                 });
+
+                 // Tool Option Controls
+                 const disableOptions = !imageLoaded || !appIsIdle; // Most options disabled if not idle
+                 const disableBrushOptions = !imageLoaded || !(appIsIdle || isColorPickingActive); // Feather/Tolerance available during color picking
+
+                 if (brushSizeSlider) brushSizeSlider.disabled = disableOptions;
+                 if (brushFeatherSlider) brushFeatherSlider.disabled = disableBrushOptions; // Allow changing feather while picking
+                 if (brushOpacitySlider) brushOpacitySlider.disabled = disableOptions;
+                 if (shapeCircleBtn) shapeCircleBtn.disabled = disableOptions;
+                 if (shapeSquareBtn) shapeSquareBtn.disabled = disableOptions;
+
+                 // Auto/Hole/Color Tool Controls
+                 const disableAuto = !imageLoaded || !appIsIdle;
+                 if (removeEdgeBgBtn) removeEdgeBgBtn.disabled = disableAuto || isFloodFilling;
+                 if (removeInnerHoleBtn) {
+                    removeInnerHoleBtn.disabled = disableAuto || isColorPickingActive; // Disable if picking color too
+                    if (waitingForInnerHoleClick) removeInnerHoleBtn.disabled = false; // Keep enabled if waiting
+                 }
+                 if (edgeColorToleranceSlider) edgeColorToleranceSlider.disabled = disableBrushOptions; // Allow changing tolerance while picking
+                 if (applyColorRemovalBtn) applyColorRemovalBtn.disabled = !canApplyColorRemoval; // Enable based on specific conditions
+
+
+                 // Preview Background Controls
+                 if(previewBgToggleBtn) previewBgToggleBtn.disabled = !imageLoaded;
+                 if(previewBgColorInput) previewBgColorInput.disabled = !imageLoaded || previewMode !== 'solid';
+
+                 // Re-apply active state classes if buttons were disabled/enabled
+                 if(colorPickerBtn) colorPickerBtn.classList.toggle('active-color-picker', isColorPickingActive && !colorPickerBtn.disabled);
+                 if(removeInnerHoleBtn) removeInnerHoleBtn.classList.toggle('active-hole-remover', waitingForInnerHoleClick && !removeInnerHoleBtn.disabled);
+                 // General active tool state
+                  const activeBtn = document.getElementById(`${currentTool}-tool`);
+                  if (activeBtn && !isColorPickingActive && !waitingForInnerHoleClick) {
+                       activeBtn.classList.toggle('active-tool', !activeBtn.disabled);
+                  }
+
+             }
+
+             function updatePreviewBackground() {
+                if (!canvasOuterContainer || !previewBgIcon || !previewBgToggleBtn) return;
+                 if (previewMode === 'solid') {
+                     canvasOuterContainer.classList.remove('checkerboard-bg');
+                     canvasOuterContainer.classList.add('solid-bg');
+                     canvasOuterContainer.style.backgroundColor = previewBackgroundColor;
+                     previewBgIcon.className = 'fas fa-square fa-fw';
+                     previewBgToggleBtn.title = 'Cambiar a fondo damero';
+                 } else {
+                     canvasOuterContainer.classList.add('checkerboard-bg');
+                     canvasOuterContainer.classList.remove('solid-bg');
+                     canvasOuterContainer.style.backgroundColor = '';
+                     previewBgIcon.className = 'fas fa-th fa-fw';
+                     previewBgToggleBtn.title = 'Cambiar a fondo de color sólido';
+                 }
+                 updateActionButtonsState(); // Update potentially disabled color input
+             }
+
+            function checkClipboardSupport() {
+                 if (!isClipboardReadSupported) {
+                    if (pasteSupportWarning) pasteSupportWarning.classList.remove('hidden');
+                    if (pasteBtn) { pasteBtn.disabled = true; pasteBtn.title = "Pegar no soportado."; }
+                    console.warn("Clipboard API (read/paste) no soportada o permitida.");
+                 } else {
+                    if (pasteSupportWarning) pasteSupportWarning.classList.add('hidden');
+                 }
+                 if (!isClipboardWriteSupported) {
+                    if (clipboardSupportWarning) clipboardSupportWarning.classList.remove('hidden');
+                    if (copyBtn) { copyBtn.disabled = true; copyBtn.title = "Copiar no soportado."; }
+                    console.warn("Clipboard API (write/copy) no soportada o permitida.");
+                 } else {
+                    if (clipboardSupportWarning) clipboardSupportWarning.classList.add('hidden');
+                 }
+                 updateActionButtonsState();
+            }
+
+            function saveStateToHistory() {
+                if (!maskCtx || !maskCanvas) return;
+                try {
+                    const currentState = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                    history.push(currentState);
+                    if (history.length > MAX_HISTORY + 1) {
+                        history.shift();
+                    }
+                    console.log("Historial guardado, tamaño:", history.length);
+                    updateActionButtonsState();
+                } catch(e) {
+                    console.error("Error guardando estado en el historial:", e);
+                }
+            }
+
+            function undo() {
+                if (history.length <= 1 || !isIdle()) return; // Check idle state
+                console.log("Deshaciendo...");
+                try {
+                    history.pop();
+                    const previousState = history[history.length - 1];
+                    if(previousState) {
+                        maskCtx.putImageData(previousState, 0, 0);
+                        requestRender();
+                    }
+                } catch(e) {
+                    console.error("Error al deshacer:", e);
+                } finally {
+                    updateActionButtonsState();
+                }
+            }
+
+            function showButtonFeedback(button, status, message = null, duration = 1500) {
+                if (!button) return;
+                const isHoleRemoverButton = button.id === 'remove-inner-hole-btn';
+                 const isColorPickerButton = button.id === 'color-picker-tool';
+                const isWorkingOrCancelling = status === 'working' || status === 'cancelling';
+
+                // Store original state carefully only if not already storing/showing active state
+                const isActiveHole = isHoleRemoverButton && (button.classList.contains('active-hole-remover') || status === 'active-hole-remover');
+                const isActivePicker = isColorPickerButton && (button.classList.contains('active-color-picker') || status === 'active-color-picker');
+                if (!button.dataset.originalHtml && !isActiveHole && !isActivePicker) {
+                    button.dataset.originalHtml = button.innerHTML;
+                }
+                 if (!button.dataset.originalTitle && !isActiveHole && !isActivePicker) {
+                    button.dataset.originalTitle = button.title;
+                 }
+
+                if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout);
+                button.feedbackTimeout = null;
+                // Clear all potential feedback/state classes EXCEPT the persistent active ones if needed
+                button.classList.remove('success', 'error', 'working', 'cancelling');
+                if(status !== 'active-hole-remover') button.classList.remove('active-hole-remover');
+                if(status !== 'active-color-picker') button.classList.remove('active-color-picker');
+
+
+                let finalMessage = message;
+                let finalTitle = button.dataset.originalTitle || button.title;
+
+                if (status === 'active-hole-remover') {
+                    button.classList.add('active-hole-remover');
+                    finalMessage = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                    finalTitle = "Haz clic en un área interna para eliminarla, o pulsa Esc para cancelar.";
+                } else if (status === 'active-color-picker') {
+                    button.classList.add('active-color-picker');
+                     // Use original content for active picker state unless a message is provided
+                    finalMessage = message || button.dataset.originalHtml || button.innerHTML;
+                    finalTitle = button.dataset.originalTitle || button.title;
+                } else if (status) { // success, error, working, cancelling
+                    button.classList.add(status);
+                }
+
+                // Update content only if it's different or if a message is explicitly provided
+                 if (finalMessage && button.innerHTML !== finalMessage) {
+                     if (finalMessage.startsWith('<i class="')) button.innerHTML = finalMessage;
+                     else button.textContent = finalMessage; // Use textContent for plain text to avoid potential injection
+                 } else if (!finalMessage && status !== 'active-hole-remover' && status !== 'active-color-picker' && button.dataset.originalHtml) {
+                     // Restore original if no message provided and not an active state
+                     button.innerHTML = button.dataset.originalHtml;
+                 }
+
+                // Always update title
+                 if (button.title !== finalTitle) button.title = finalTitle;
+
+                button.disabled = isWorkingOrCancelling;
+
+                const shouldRevert = (status === 'success' || status === 'error');
+                if (shouldRevert) {
+                    button.feedbackTimeout = setTimeout(() => {
+                        button.classList.remove(status); // Remove feedback class
+                        // Restore original HTML/Title if stored
+                         if (!isActiveHole && !isActivePicker && button.dataset.originalHtml) { // Only restore if not staying active
+                            button.innerHTML = button.dataset.originalHtml;
+                         }
+                         if (!isActiveHole && !isActivePicker && button.dataset.originalTitle) {
+                            button.title = button.dataset.originalTitle;
+                         }
+                        // Re-apply specific active states if they should persist (e.g., after a brief success/error message)
+                         if(isHoleRemoverButton && waitingForInnerHoleClick) button.classList.add('active-hole-remover');
+                         if(isColorPickerButton && isColorPickingActive) button.classList.add('active-color-picker');
+                         updateActionButtonsState(); // Update general button states
+                    }, duration);
+                } else if (!isWorkingOrCancelling && !isActiveHole && !isActivePicker) {
+                     // If feedback was just cleared (e.g. status=null) and wasn't a blocking state, restore appearance
+                      if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+                      if (button.dataset.originalTitle) button.title = button.dataset.originalTitle;
+                      updateActionButtonsState();
+                }
+            }
+
+            function showProcessingOverlay(message) {
+                if (processingStatusText) processingStatusText.textContent = message || "Procesando...";
+                if (processingOverlay) processingOverlay.classList.remove('hidden');
+            }
+            function hideProcessingOverlay() {
+                if (processingOverlay) processingOverlay.classList.add('hidden');
+            }
+
+            async function createFinalImageBlob(format = 'image/png') {
+                 if (!originalImage || !maskCanvas) return null;
+                 console.log("Creando Blob final...");
+                 const finalCanvas = document.createElement('canvas');
+                 finalCanvas.width = originalImage.naturalWidth;
+                 finalCanvas.height = originalImage.naturalHeight;
+                 const finalCtx = finalCanvas.getContext('2d');
+                 if (!finalCtx) { console.error("No se pudo crear contexto para el canvas final."); return null; }
+                 finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+                 finalCtx.drawImage(originalImage, 0, 0);
+                 finalCtx.globalCompositeOperation = 'destination-in';
+                 finalCtx.drawImage(maskCanvas, 0, 0);
+                 finalCtx.globalCompositeOperation = 'source-over';
+                 return new Promise((resolve) => finalCanvas.toBlob(resolve, format));
+            }
+
+            async function exportImage() {
+                 if (!originalImage || !exportBtn || exportBtn.disabled) return;
+                 showButtonFeedback(exportBtn, 'working', 'Exportando...');
+                 try {
+                     const blob = await createFinalImageBlob();
+                     if (!blob) throw new Error("No se pudo generar el Blob de la imagen.");
+                     const url = URL.createObjectURL(blob);
+                     const a = document.createElement('a');
+                     a.href = url; a.download = `${imageFilename}_sin_fondo.png`;
+                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                     URL.revokeObjectURL(url);
+                     showButtonFeedback(exportBtn, 'success', '<i class="fas fa-check"></i> Exportado');
+                 } catch (error) {
+                     console.error("Error exportando imagen:", error);
+                     alert(`Error al exportar la imagen: ${error.message}`);
+                     showButtonFeedback(exportBtn, 'error', '<i class="fas fa-times"></i> Error');
+                 }
+            }
+
+            async function copyImageToClipboard() {
+                 if (!originalImage || !isClipboardWriteSupported || !copyBtn || copyBtn.disabled) return;
+                 showButtonFeedback(copyBtn, 'working', 'Copiando...');
+                 try {
+                     const blob = await createFinalImageBlob('image/png');
+                     if (!blob) throw new Error("No se pudo generar el Blob para copiar.");
+                     const item = new ClipboardItem({ 'image/png': blob });
+                     await navigator.clipboard.write([item]);
+                     showButtonFeedback(copyBtn, 'success', '<i class="fas fa-check"></i> Copiado');
+                 } catch (error) {
+                     console.error("Error copiando imagen al portapapeles:", error);
+                     let msg = "Error desconocido al copiar.";
+                     if (error.name === 'NotAllowedError') msg = "Permiso denegado.";
+                     else if (error.message && error.message.toLowerCase().includes("large")) msg = "Imagen demasiado grande.";
+                     else if (error.name === 'SecurityError') msg = "Error de seguridad (¿HTTPS?).";
+                     alert(`No se pudo copiar la imagen: ${msg}\nDetalles: ${error.message}`);
+                     showButtonFeedback(copyBtn, 'error', '<i class="fas fa-times"></i> Error');
+                 }
+            }
+
+             async function handlePasteButtonClick() {
+                 if (!isClipboardReadSupported || !pasteBtn || pasteBtn.disabled) return;
+                 console.log("Intentando pegar imagen desde el portapapeles (botón)...");
+                 showButtonFeedback(pasteBtn, 'working', 'Pegando...');
+                 try {
+                     const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+                     if (permission.state === 'denied') throw new Error("Permiso denegado.");
+                     const clipboardItems = await navigator.clipboard.read();
+                     let imageFound = false;
+                     for (const item of clipboardItems) {
+                         const imageType = item.types.find(type => type.startsWith("image/"));
+                         if (imageType) {
+                             const blob = await item.getType(imageType);
+                             cancelCurrentAction();
+                             handleFile(new File([blob], "imagen_pegada.png", { type: imageType }));
+                             imageFound = true;
+                             break;
+                         }
+                     }
+                     if (imageFound) showButtonFeedback(pasteBtn, 'success', '<i class="fas fa-check"></i> Pegado');
+                     else showButtonFeedback(pasteBtn, 'error', 'No hay imagen', 1000);
+                 } catch (error) {
+                     console.error("Error pegando desde el portapapeles:", error);
+                     let msg = "Error desconocido.";
+                     if (error.name === 'NotAllowedError' || (error.message && error.message.includes("denied"))) msg = "Permiso denegado.";
+                     else if (error.name === 'SecurityError') msg = "Error de seguridad (¿HTTPS?).";
+                     else if (error.message && error.message.includes("No valid data")) msg = "No hay imagen válida.";
+                     else if (error.message && (error.message.includes("User activation") || error.message.includes("transient activation"))) msg = "Requiere interacción previa.";
+                     alert(`No se pudo pegar: ${msg}\nDetalles: ${error.message}`);
+                     showButtonFeedback(pasteBtn, 'error', '<i class="fas fa-times"></i> Error');
+                 }
+             }
+
+            function handleClipboardPaste(clipboardData) {
+                 if (!clipboardData?.items) return false;
+                 console.log("Manejando evento 'paste' global...");
+                 let imageFound = false;
+                 for (const item of clipboardData.items) {
+                     if (item.kind === 'file' && item.type.startsWith('image/')) {
+                         const file = item.getAsFile();
+                         if (file) {
+                             cancelCurrentAction();
+                             handleFile(file);
+                             imageFound = true;
+                             break;
+                         }
+                     }
+                 }
+                 if(!imageFound) console.log("No se encontraron imágenes de tipo 'file' en el evento paste.");
+                 return imageFound;
+            }
+
+            function colorDistance(r1, g1, b1, r2, g2, b2) {
+                const dr = r1 - r2;
+                const dg = g1 - g2;
+                const db = b1 - b2;
+                return dr * dr + dg * dg + db * db; // Squared distance
+            }
+
+            // --- Flood Fill Logic (Background & Holes - Unchanged) ---
+            async function handleRemoveBackgroundByFloodFill() {
+                console.log(`%c>>> handleRemoveBackgroundByFloodFill`, 'color: blue; font-weight: bold;');
+                 if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || !isIdle()) {
+                    console.warn("Fondo Automático abortado: Estado inválido.");
+                    if (!isFloodFilling) showButtonFeedback(removeEdgeBgBtn, 'error', 'Ocupado', 1000);
+                    return;
+                }
+                isFloodFilling = true; cancelFloodFillRequest = false; updateActionButtonsState();
+                showButtonFeedback(removeEdgeBgBtn, 'working', 'Analizando...');
+                showProcessingOverlay('Analizando bordes...');
+                await new Promise(resolve => setTimeout(resolve, 50));
+                try {
+                    if (cancelFloodFillRequest) throw new Error("CancelledBeforeStart");
+                    processingStatusText.textContent = "Procesando fondo...";
+                    const tolerance = parseInt(edgeColorToleranceSlider.value, 10);
+                    const toleranceSq = tolerance * tolerance * 3;
+                    const originalData = originalImageDataCache;
+                    const maskImageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                    const width = maskImageData.width; const height = maskImageData.height;
+                    const visited = Array(height).fill(null).map(() => Array(width).fill(false));
+                    console.log(`   Iniciando Flood Fill desde bordes. Tolerancia: ${tolerance}, DistSq Límite: ${toleranceSq.toFixed(0)}`);
+                    const startTime = performance.now();
+                    let wasCancelledDuringFill = false;
+                    for (let x = 0; x < width; x++) {
+                        if (cancelFloodFillRequest) { wasCancelledDuringFill = true; break; }
+                        if (await floodFillMaskAsync(originalData, maskImageData, x, 0, toleranceSq, visited)) { wasCancelledDuringFill = true; break; }
+                        if (await floodFillMaskAsync(originalData, maskImageData, x, height - 1, toleranceSq, visited)) { wasCancelledDuringFill = true; break; }
+                    }
+                    if (!wasCancelledDuringFill) {
+                         for (let y = 1; y < height - 1; y++) {
+                            if (cancelFloodFillRequest) { wasCancelledDuringFill = true; break; }
+                            if (await floodFillMaskAsync(originalData, maskImageData, 0, y, toleranceSq, visited)) { wasCancelledDuringFill = true; break; }
+                            if (await floodFillMaskAsync(originalData, maskImageData, width - 1, y, toleranceSq, visited)) { wasCancelledDuringFill = true; break; }
+                         }
+                    }
+                    const endTime = performance.now();
+                    console.log(`   Flood Fill terminado en ${((endTime - startTime)/1000).toFixed(2)}s. Cancelado: ${wasCancelledDuringFill || cancelFloodFillRequest}`);
+                    if (cancelFloodFillRequest || wasCancelledDuringFill) throw new Error("Cancelled");
+                    maskCtx.putImageData(maskImageData, 0, 0);
+                    saveStateToHistory(); renderCanvas();
+                    console.log("<<< Fondo Automático Completado.");
+                    showButtonFeedback(removeEdgeBgBtn, 'success', '<i class="fas fa-check"></i> Hecho');
+                } catch (error) {
+                    if (error.message === "Cancelled" || error.message === "CancelledBeforeStart") {
+                        console.log("%cFlood Fill (Fondo) CANCELADO.", 'color: orange;');
+                        showButtonFeedback(removeEdgeBgBtn, 'error', 'Cancelado', 1500);
+                    } else {
+                        console.error("Error durante Flood Fill (Fondo):", error);
+                        alert(`Error proceso automático: ${error.message}`);
+                        showButtonFeedback(removeEdgeBgBtn, 'error', 'Error Proc.', 1500);
+                    }
+                } finally {
+                     console.log("   Finally Flood Fill (Edge): Limpiando.");
+                     isFloodFilling = false; cancelFloodFillRequest = false; hideProcessingOverlay();
+                     if (!removeEdgeBgBtn.classList.contains('success') && !removeEdgeBgBtn.classList.contains('error')) {
+                         if (removeEdgeBgBtn.dataset.originalHtml) removeEdgeBgBtn.innerHTML = removeEdgeBgBtn.dataset.originalHtml;
+                         if (removeEdgeBgBtn.dataset.originalTitle) removeEdgeBgBtn.title = removeEdgeBgBtn.dataset.originalTitle;
+                     }
+                    updateActionButtonsState();
+                }
+            }
+            async function floodFillMaskAsync(originalData, maskData, startX, startY, toleranceSq, visited) {
+                const width = originalData.width; const height = originalData.height;
+                const originalPixels = originalData.data; const maskPixels = maskData.data;
+                const checkCancelInterval = 5000;
+                if (startX < 0 || startX >= width || startY < 0 || startY >= height || visited[startY][startX]) return false;
+                const startIndex = (startY * width + startX) * 4;
+                if (maskPixels[startIndex + 3] < 128 || originalPixels[startIndex + 3] < 128) {
+                    visited[startY][startX] = true; return false;
+                }
+                const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
+                const queue = [[startX, startY]];
+                visited[startY][startX] = true; maskPixels[startIndex + 3] = 0;
+                let pixelsProcessed = 0;
+                while (queue.length > 0) {
+                    pixelsProcessed++;
+                    if (pixelsProcessed % checkCancelInterval === 0) {
+                        if (cancelFloodFillRequest) return true;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                        if (cancelFloodFillRequest) return true;
+                    }
+                    const [x, y] = queue.shift();
+                    const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]];
+                    for (const [nx, ny] of neighbors) {
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
+                            visited[ny][nx] = true;
+                            const nIndex = (ny * width + nx) * 4;
+                            if (maskPixels[nIndex + 3] >= 128 && originalPixels[nIndex + 3] >= 128) {
+                                const nR = originalPixels[nIndex]; const nG = originalPixels[nIndex + 1]; const nB = originalPixels[nIndex + 2];
+                                if (colorDistance(startR, startG, startB, nR, nG, nB) <= toleranceSq) {
+                                    queue.push([nx, ny]); maskPixels[nIndex + 3] = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                return false; // Completed without cancellation
+            }
+            function activateInnerHoleClickMode() {
+                 if (!originalImage || !isIdle()) {
+                    console.warn("No se pudo activar 'Eliminar Hueco': Estado inválido."); return;
+                 }
+                 console.log("Activando modo 'Eliminar Hueco Interno'");
+                 // setActiveTool implicitly called by button click now, ensures correct state
+                 waitingForInnerHoleClick = true; // Explicitly set flag
+                 showButtonFeedback(removeInnerHoleBtn, 'active-hole-remover');
+                 updateActionButtonsState(); // Updates button states including disabling others
+                 clearPreviewCanvas();
+                 canvasOuterContainer.style.cursor = 'crosshair';
+            }
+            function cancelInnerHoleClickMode(silent = false) {
+                if (!waitingForInnerHoleClick) return;
+                if (!silent) console.log("Cancelando modo 'Eliminar Hueco Interno'");
+                waitingForInnerHoleClick = false;
+
+                 // Clear potential timeout first
+                 if (removeInnerHoleBtn.feedbackTimeout) clearTimeout(removeInnerHoleBtn.feedbackTimeout);
+                 removeInnerHoleBtn.feedbackTimeout = null;
+
+                // Restore button UI only if it's not going to be immediately set again by setActiveTool
+                const revertingToDifferentTool = currentTool === 'hole-remover'; // Check if we need to revert tool
+
+                removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error', 'working', 'cancelling');
+                 if (removeInnerHoleBtn.dataset.originalHtml) {
+                      removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml;
+                      // delete removeInnerHoleBtn.dataset.originalHtml; // Optionally clear
+                 } else removeInnerHoleBtn.innerHTML = '<i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno';
+                 if (removeInnerHoleBtn.dataset.originalTitle) {
+                     removeInnerHoleBtn.title = removeInnerHoleBtn.dataset.originalTitle;
+                     // delete removeInnerHoleBtn.dataset.originalTitle; // Optionally clear
+                 } else removeInnerHoleBtn.title = "Activa/Desactiva el modo 'Eliminar Hueco'.";
+
+
+                 // Only revert tool if necessary
+                 if (revertingToDifferentTool) {
+                     setActiveTool('eraser'); // Revert to default tool
+                 } else {
+                     // If not changing tool, still need to update UI
+                     updateStatusBar();
+                     updateActionButtonsState();
+                     canvasOuterContainer.style.cursor = getToolCursor();
+                 }
+            }
+            function removeInnerHoleAt(startX, startY) {
+                console.log(`%c>>> removeInnerHoleAt (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: purple; font-weight: bold;');
+                 if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || !waitingForInnerHoleClick || !isIdle()) {
+                    console.warn("Eliminar Hueco abortado: Estado inválido.");
+                    showButtonFeedback(removeInnerHoleBtn, 'error', 'Ocupado', 1000); return;
+                }
+                const width = maskCanvas.width; const height = maskCanvas.height;
+                startX = Math.floor(startX); startY = Math.floor(startY);
+                if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
+                    console.log("Clic fuera de límites.");
+                    showButtonFeedback(removeInnerHoleBtn, 'error', 'Fuera Límites', 1000); return;
+                }
+                let pixelsChanged = 0; let success = false; let message = ''; let statusClass = 'error';
+                try {
+                    const maskImageData = maskCtx.getImageData(0, 0, width, height);
+                    const maskPixels = maskImageData.data;
+                    const originalPixels = originalImageDataCache.data;
+                    const tolerance = parseInt(edgeColorToleranceSlider.value, 10);
+                    const toleranceSq = tolerance * tolerance * 3;
+                    const startIndex = (startY * width + startX) * 4;
+                    if (maskPixels[startIndex + 3] < 128) {
+                        message = 'Ya Transparente'; statusClass = 'error'; success = false;
+                    } else {
+                        const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
+                        const visited = Array(height).fill(null).map(() => Array(width).fill(false));
+                        const queue = [[startX, startY]];
+                        visited[startY][startX] = true; maskPixels[startIndex + 3] = 0; pixelsChanged = 1;
+                        let iterations = 0; const maxIterations = width * height * 2;
+                        while (queue.length > 0) {
+                            iterations++;
+                             if (iterations > maxIterations) {
+                                 console.warn(`Flood fill (hueco) excedió límite iteraciones en (${startX}, ${startY}).`);
+                                 message = 'Proceso Largo'; statusClass = 'error'; success = false; break;
+                             }
+                            const [x, y] = queue.shift();
+                            const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]];
+                            for (const [nx, ny] of neighbors) {
+                                if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny][nx]) {
+                                    visited[ny][nx] = true;
+                                    const nIndex = (ny * width + nx) * 4;
+                                    if (maskPixels[nIndex + 3] >= 128) {
+                                        const nR_orig = originalPixels[nIndex]; const nG_orig = originalPixels[nIndex + 1]; const nB_orig = originalPixels[nIndex + 2];
+                                        if (colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig) <= toleranceSq) {
+                                            queue.push([nx, ny]); maskPixels[nIndex + 3] = 0; pixelsChanged++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (pixelsChanged > 0 && success !== false) {
+                             maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender();
+                             message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true;
+                         } else if (success !== false) {
+                             message = 'No Cambios'; statusClass = 'error'; success = false;
+                         }
+                    }
+                } catch (error) {
+                    console.error("Error eliminando hueco:", error); alert(`Error procesar hueco: ${error.message}`);
+                    message = '<i class="fas fa-times"></i> Error Proc.'; statusClass = 'error'; success = false;
+                } finally {
+                    const feedbackDuration = success ? 1000 : 1500;
+                    if (removeInnerHoleBtn.feedbackTimeout) clearTimeout(removeInnerHoleBtn.feedbackTimeout);
+                    removeInnerHoleBtn.classList.remove('active-hole-remover'); // Temporarily remove active class
+                    removeInnerHoleBtn.classList.add(statusClass); // Show success/error
+                    removeInnerHoleBtn.innerHTML = message; // Show feedback message
+                    // Set timeout to restore the 'active' look *if still in that mode*
+                    removeInnerHoleBtn.feedbackTimeout = setTimeout(() => {
+                         removeInnerHoleBtn.classList.remove(statusClass); // Remove feedback class
+                         if (waitingForInnerHoleClick) { // Check the actual state flag
+                            // If still in hole mode, restore the active look
+                             removeInnerHoleBtn.classList.add('active-hole-remover');
+                             removeInnerHoleBtn.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                             if (removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.title = removeInnerHoleBtn.dataset.originalTitle;
+                             else removeInnerHoleBtn.title = "Haz clic en un área interna...";
+                         } else {
+                             // If mode was cancelled in the meantime, restore original look (should have been done by cancelInnerHoleClickMode)
+                             if (removeInnerHoleBtn.dataset.originalHtml) removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml;
+                             else removeInnerHoleBtn.innerHTML = '<i class="fas fa-highlighter mr-1"></i> Eliminar Hueco Interno'; // Fallback
+                             if (removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.title = removeInnerHoleBtn.dataset.originalTitle;
+                             else removeInnerHoleBtn.title = "Activa/Desactiva el modo 'Eliminar Hueco'."; // Fallback
+                         }
+                         updateActionButtonsState(); // Update general button states
+                    }, feedbackDuration);
+                }
+            }
+
+             // --- NEW Color Picker Functions ---
+
+             function pickColorAt(imageX, imageY) {
+                 if (!originalImageDataCache || !originalImage) {
+                     console.warn("Intento de seleccionar color sin datos de imagen originales.");
+                     return;
+                 }
+
+                 const x = Math.floor(imageX);
+                 const y = Math.floor(imageY);
+                 const width = originalImage.naturalWidth;
+                 const height = originalImage.naturalHeight;
+
+                 if (x < 0 || x >= width || y < 0 || y >= height) {
+                     console.log("Clic fuera de límites para selección de color.");
+                     return;
+                 }
+
+                 const index = (y * width + x) * 4;
+                 const r = originalImageDataCache.data[index];
+                 const g = originalImageDataCache.data[index + 1];
+                 const b = originalImageDataCache.data[index + 2];
+
+                 const colorExists = selectedBackgroundColors.some(c => c.r === r && c.g === g && c.b === b);
+
+                 if (!colorExists) {
+                     // Limit number of selected colors? (Optional)
+                     // if (selectedBackgroundColors.length >= 10) {
+                     //     alert("Límite de colores seleccionados alcanzado (10).");
+                     //     return;
+                     // }
+                     selectedBackgroundColors.push({ r, g, b });
+                     console.log(`Color añadido: rgb(${r}, ${g}, ${b}). Total: ${selectedBackgroundColors.length}`);
+                     updateSelectedColorsUI();
+                     updateActionButtonsState(); // Update Apply button state
+                     // Give feedback on the picker button itself
+                     showButtonFeedback(colorPickerBtn, 'success', `<i class="fas fa-plus"></i> ${r},${g},${b}`, 800);
+                 } else {
+                     console.log(`Color rgb(${r}, ${g}, ${b}) ya seleccionado.`);
+                     showButtonFeedback(colorPickerBtn, 'error', 'Ya existe', 800);
+                 }
+             }
+
+             function removeSelectedColor(r, g, b) {
+                selectedBackgroundColors = selectedBackgroundColors.filter(color => !(color.r === r && color.g === g && color.b === b));
+                console.log(`Color eliminado: rgb(${r}, ${g}, ${b}). Restantes: ${selectedBackgroundColors.length}`);
+                updateSelectedColorsUI();
+                updateActionButtonsState(); // Update Apply button state
+             }
+
+             function updateSelectedColorsUI() {
+                 if (!selectedColorsListDiv || !noColorsSelectedP || !selectedColorsSection) return;
+
+                 selectedColorsListDiv.innerHTML = ''; // Clear previous list
+
+                 if (selectedBackgroundColors.length === 0) {
+                      if (noColorsSelectedP) {
+                          selectedColorsListDiv.appendChild(noColorsSelectedP); // Show placeholder
+                          noColorsSelectedP.style.display = 'block';
+                      }
+                 } else {
+                     if (noColorsSelectedP) noColorsSelectedP.style.display = 'none'; // Hide placeholder
+                     selectedBackgroundColors.forEach(color => {
+                         const tag = document.createElement('span');
+                         tag.className = 'color-tag';
+
+                         const dot = document.createElement('span');
+                         dot.className = 'color-dot';
+                         dot.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+
+                         const text = document.createElement('span');
+                         text.textContent = `${color.r},${color.g},${color.b}`;
+
+                         const removeBtn = document.createElement('button');
+                         removeBtn.className = 'remove-color-btn';
+                         removeBtn.innerHTML = '&times;'; // Multiplication sign X
+                         removeBtn.title = 'Eliminar este color';
+                         removeBtn.type = 'button'; // Good practice
+                         removeBtn.dataset.r = color.r;
+                         removeBtn.dataset.g = color.g;
+                         removeBtn.dataset.b = color.b;
+                         // Click listener is handled by event delegation on selectedColorsListDiv
+
+                         tag.appendChild(dot);
+                         tag.appendChild(text);
+                         tag.appendChild(removeBtn);
+                         selectedColorsListDiv.appendChild(tag);
+                     });
+                 }
+                 // Ensure the section is visible only if the tool is active and image loaded
+                 selectedColorsSection.style.display = (isColorPickingActive && originalImage) ? 'block' : 'none';
+             }
+
+            // Function to apply feathering (simple box blur on alpha)
+            function applyFeatherToMask(maskImageData, width, height, featherAmount) {
+                 // Convert feather slider value (0-1) to a pixel radius for blurring
+                 // Adjust the multiplier as needed for desired effect intensity
+                 const radius = Math.round(featherAmount * 15); // Example: max 15px blur radius
+
+                 if (radius <= 0) return maskImageData; // No feathering needed
+                 console.log(`   Aplicando suavizado con radio ~${radius}px`);
+
+                 const data = maskImageData.data;
+                 const tempAlpha = new Uint8Array(width * height); // Store initial alpha
+                 const blurredAlpha = new Uint8Array(width * height); // Store blurred alpha
+
+                 // Extract alpha channel
+                 for (let i = 0; i < width * height; i++) {
+                     tempAlpha[i] = data[i * 4 + 3];
+                 }
+
+                 // Apply box blur approximation (can be slow for large radius/images)
+                 // This is a basic implementation; faster algorithms (like Gaussian approximation) exist
+                 for (let y = 0; y < height; y++) {
+                     for (let x = 0; x < width; x++) {
+                         let totalAlpha = 0;
+                         let count = 0;
+
+                         // Iterate over the box kernel
+                         for (let ky = -radius; ky <= radius; ky++) {
+                             const ny = y + ky;
+                             if (ny < 0 || ny >= height) continue; // Skip out of bounds y
+                             for (let kx = -radius; kx <= radius; kx++) {
+                                 const nx = x + kx;
+                                 if (nx < 0 || nx >= width) continue; // Skip out of bounds x
+
+                                 totalAlpha += tempAlpha[ny * width + nx];
+                                 count++;
+                             }
+                         }
+
+                         // Calculate average and store in blurred array
+                         if (count > 0) {
+                             blurredAlpha[y * width + x] = totalAlpha / count;
+                         } else {
+                             blurredAlpha[y * width + x] = tempAlpha[y * width + x]; // Should not happen with radius > 0
+                         }
+                     }
+                 }
+
+                 // Apply the blurred alpha back to the mask image data
+                 for (let i = 0; i < width * height; i++) {
+                     data[i * 4 + 3] = blurredAlpha[i];
+                 }
+
+                 return maskImageData; // Return the modified imageData object
+             }
+
+
+            async function applyColorRemoval() {
+                 console.log("%c>>> Aplicando Eliminación por Color...", 'color: purple; font-weight: bold;');
+                  if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || selectedBackgroundColors.length === 0 || !isIdle()) {
+                     console.warn("Eliminación por Color abortada: Estado inválido o sin colores.");
+                     showButtonFeedback(applyColorRemovalBtn, 'error', 'Error Estado', 1000);
+                     return;
+                 }
+
+                 isProcessingColorRemoval = true;
+                 updateActionButtonsState();
+                 showButtonFeedback(applyColorRemovalBtn, 'working', 'Procesando...');
+                 showProcessingOverlay('Eliminando colores seleccionados...');
+
+                 await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to update
+
+                 try {
+                     const tolerance = parseInt(edgeColorToleranceSlider.value, 10);
+                     const toleranceSq = tolerance * tolerance * 3;
+                     const featherAmount = parseFloat(brushFeatherSlider.value);
+
+                     const width = maskCanvas.width;
+                     const height = maskCanvas.height;
+                     const originalPixels = originalImageDataCache.data;
+                     const maskImageData = maskCtx.getImageData(0, 0, width, height);
+                     const maskPixels = maskImageData.data;
+
+                     console.log(`   Procesando ${width}x${height} pixeles. Colores: ${selectedBackgroundColors.length}, Tolerancia: ${tolerance}, Suavizado: ${featherAmount}`);
+                     const startTime = performance.now();
+
+                     // Perform color matching and transparency setting
+                     for (let y = 0; y < height; y++) {
+                         for (let x = 0; x < width; x++) {
+                             const index = (y * width + x) * 4;
+                             const rOrig = originalPixels[index];
+                             const gOrig = originalPixels[index + 1];
+                             const bOrig = originalPixels[index + 2];
+                             const aOrig = originalPixels[index + 3];
+
+                             if (aOrig < 128) continue; // Skip transparent pixels in original
+
+                             let isMatch = false;
+                             for (const bgColor of selectedBackgroundColors) {
+                                 if (colorDistance(rOrig, gOrig, bOrig, bgColor.r, bgColor.g, bgColor.b) <= toleranceSq) {
+                                     isMatch = true;
+                                     break;
+                                 }
+                             }
+                             if (isMatch) {
+                                 maskPixels[index + 3] = 0; // Make transparent in mask
+                             }
+                         }
+                     }
+
+                     // Apply feathering AFTER color removal if specified
+                     let finalMaskData = maskImageData;
+                     if (featherAmount > 0) {
+                         finalMaskData = applyFeatherToMask(maskImageData, width, height, featherAmount);
+                     }
+
+                     maskCtx.putImageData(finalMaskData, 0, 0); // Apply modified mask data
+
+                     const endTime = performance.now();
+                     console.log(`   Eliminación por Color completada en ${((endTime - startTime)/1000).toFixed(2)}s.`);
+
+                     saveStateToHistory();
+                     renderCanvas();
+                     showButtonFeedback(applyColorRemovalBtn, 'success', '<i class="fas fa-check"></i> Colores Aplicados');
+
+                 } catch (error) {
+                     console.error("Error durante la eliminación por color:", error);
+                     alert(`Error al aplicar eliminación por color: ${error.message}`);
+                     showButtonFeedback(applyColorRemovalBtn, 'error', 'Error Proc.', 1500);
+                 } finally {
+                     console.log("   Finally Eliminación por Color: Limpiando estado.");
+                     isProcessingColorRemoval = false;
+                     hideProcessingOverlay();
+                     if (!applyColorRemovalBtn.classList.contains('success') && !applyColorRemovalBtn.classList.contains('error')) {
+                         if (applyColorRemovalBtn.dataset.originalHtml) applyColorRemovalBtn.innerHTML = applyColorRemovalBtn.dataset.originalHtml;
+                         if (applyColorRemovalBtn.dataset.originalTitle) applyColorRemovalBtn.title = applyColorRemovalBtn.dataset.originalTitle;
+                     }
+                     updateActionButtonsState(); // Re-enable buttons
+                 }
+            }
+
+        // --- Final cierre del listener DOMContentLoaded ---
+        }); // End DOMContentLoaded Listener
+    </script>
+</body>
+</html>
