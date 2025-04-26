@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminador de Fondos (Varita + Color + Comparador) - XocoStudio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- === Dependencias img-comparison-slider === -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/style.css" />
+    <!-- === FIN Dependencias === -->
+
+<style>
+    /* --- Estilos CSS (Optimizados + Añadidos) --- */
+    body { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+    /* Fondos */
+    .checkerboard-bg { background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: #e5e5e5;}
+    .solid-bg { background-image: none !important; } /* Para fondo sólido */
+    /* Botones Activos */
+    .tool-btn.active-tool { background-color: #d1d5db; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
+    .tool-btn.active-hole-remover { background-color: #fde047 !important; color: #713f12 !important; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #ca8a04; }
+    .tool-btn.active-color-picker { background-color: #a5b4fc !important; color: #3730a3 !important; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #6366f1; }
+    .brush-shape.active-shape { border-color: #3b82f6; border-width: 2px; }
+    .active-bg-option { background-color: #dbeafe !important; border-color: #60a5fa !important; }
+    /* Canvas y Contenedores */
+    #canvas-outer-container { width: 100%; height: 100%; overflow: hidden; position: relative; cursor: default; transition: background-color 0.3s ease; }
+    #canvas-inner-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+    #image-canvas, #preview-canvas { display: block; position: absolute; top: 0; left: 0; max-width: none; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+    #preview-canvas { pointer-events: none; z-index: 1;} #image-canvas { z-index: 0; }
+    main { height: calc(100vh - 64px - 32px); }
+    /* Iconos Compuestos */
+    .fa-line-eraser::before { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; } .fa-line-eraser::after { content: ""; position: absolute; left: 15%; top: 50%; width: 70%; height: 2px; background-color: currentColor; transform: translateY(-50%) rotate(0deg); opacity: 0.6; z-index: 0; } .tool-btn .fa-line-eraser { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } #eraser-line-tool i { font-size: 0.9em; } .fa-continuous-eraser-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } .fa-continuous-eraser-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; } .fa-continuous-eraser-line::after { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #ef4444; } #continuous-eraser-line-tool i { font-size: 1em; } .fa-continuous-keep-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } .fa-continuous-keep-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; } .fa-continuous-keep-line::after { content: "\f55d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #22c55e; } #continuous-keep-line-tool i { font-size: 1em; }
+    /* Feedback Botones */
+    .btn-feedback { transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out; } .btn-feedback.success { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; } .btn-feedback.error { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; } .btn-feedback.working { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; cursor: wait; } .btn-feedback.cancelling { background-color: #f97316 !important; color: white !important; border-color: #ea580c !important; cursor: default; }
+    /* Overlay Procesamiento */
+    .processing-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: none; } .processing-overlay i { margin-bottom: 10px; } .processing-overlay p { margin-top: 0px; font-size: 1.1rem; }
+    /* Estilos Colores Seleccionados */
+    .color-tag { display: inline-flex; align-items: center; background-color: #e5e7eb; border-radius: 9999px; padding: 2px 8px; margin: 2px; font-size: 0.8rem; line-height: 1; }
+    .color-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; border: 1px solid #9ca3af; display: inline-block; }
+    .remove-color-btn { margin-left: 4px; cursor: pointer; color: #ef4444; background: none; border: none; padding: 0; font-weight: bold; line-height: 1; }
+    .remove-color-btn:hover { color: #dc2626; }
+    #selected-colors-list { max-height: 80px; overflow-y: auto; background-color: #f9fafb; padding: 4px; border-radius: 4px; border: 1px solid #d1d5db; }
+    /* === Estilos Popup Comparación === */
+    #compare-popup-overlay { backdrop-filter: blur(3px); }
+    #compare-popup-content img-comparison-slider { max-width: 100%; max-height: 100%; min-height: 200px; outline: none; border-radius: 0.25rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); }
+    img-comparison-slider::part(handle) { color: #3b82f6; }
+    img-comparison-slider::part(divider) { background-color: #3b82f6; }
+    .compare-handle-icon { width: 100%; height: 100%; }
+    /* === FIN Estilos Popup === */
+</style>
+Use code with caution.
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen overflow-hidden">
+<header class="bg-white shadow-md p-4 flex-shrink-0 flex items-center">
+    <a href="https://xocostudio.com/" target="_blank" rel="noopener noreferrer" class="mr-4 flex-shrink-0"><img src="https://xocostudio.com/assets/images/xocostudio-354x128.png" alt="XocoStudio Logo" class="h-8"></a>
+    <h1 class="text-xl md:text-2xl font-bold text-gray-800">Eliminador de Fondos</h1>
+</header>
+
+<main class="flex-grow flex flex-col md:flex-row p-4 gap-4">
+    <!-- Panel de Controles -->
+    <aside class="w-full md:w-72 bg-white p-4 rounded-lg shadow space-y-6 flex-shrink-0 overflow-y-auto">
+        <!-- Carga -->
+        <div id="upload-section">
+            <h2 class="text-lg font-semibold mb-2">1. Cargar Imagen</h2>
+            <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                <p>Arrastra y suelta</p>
+                <p class="text-sm text-gray-500 my-2">o</p>
+                <div class="flex flex-col items-center space-y-2">
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
+                    <button id="upload-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded btn-feedback"><i class="fas fa-upload mr-1"></i> Seleccionar</button>
+                    <button id="paste-btn" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Pegar (Ctrl+V)"><i class="fas fa-paste mr-1"></i> Pegar</button>
+                </div>
+                <p id="paste-support-warning" class="text-xs text-red-600 mt-2 hidden">Pegar no soportado.</p>
+            </div>
+            <p id="filename-display" class="text-xs text-gray-600 mt-2 truncate"></p>
+        </div>
+        <!-- Herramientas -->
+        <div id="tools-section" class="space-y-4 hidden pt-4 border-t">
+            <h2 class="text-lg font-semibold mb-2">2. Herramientas</h2>
+            <!-- Auto / Color -->
+            <div class="mb-4 space-y-2">
+                <button id="remove-edge-bg-btn" class="w-full bg-cyan-600 hover:bg-cyan-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Fondo Automático basado en bordes"><i class="fas fa-wand-magic-sparkles mr-1"></i> Auto (Bordes)</button>
+                <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Eliminar Hueco Interno (Clic en el hueco)"><i class="fas fa-highlighter mr-1"></i> Hueco (Clic)</button>
+                <button id="apply-color-removal-btn" class="w-full bg-indigo-600 hover:bg-indigo-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Aplicar Eliminación por Color Seleccionado"><i class="fas fa-fill-drip mr-1"></i> Aplicar Color</button>
+                <div class="mt-2">
+                    <label for="edge-color-tolerance" class="block text-sm font-medium text-gray-700">Tolerancia (<span id="edge-color-tolerance-value">30</span>):</label>
+                    <input type="range" id="edge-color-tolerance" min="1" max="150" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled>
+                     <!-- ***** CAMBIO AQUÍ: Texto tolerancia actualizado ***** -->
+                    <p class="text-xs text-gray-500 mt-1">Sensibilidad Auto/Hueco/Color/Varita.</p>
+                    <!-- ***** FIN CAMBIO ***** -->
+                </div>
+            </div>
+            <!-- Manual -->
+            <div class="border-t pt-4">
+                <p class="text-sm font-medium text-gray-700 mb-2">Ajuste manual:</p>
+                 <!-- ***** CAMBIO AQUÍ: Añadido Botón Varita Mágica ***** -->
+                <div class="flex space-x-1 flex-wrap gap-y-1">
+                    <button id="color-picker-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Seleccionar Color (P)" disabled><i class="fas fa-eye-dropper fa-fw"></i></button>
+                    <button id="brush-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Pincel Conservar (B)" disabled><i class="fas fa-paint-brush fa-fw"></i></button>
+                    <button id="eraser-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Borrador Eliminar (E)" disabled><i class="fas fa-eraser fa-fw"></i></button>
+                    <!-- ***** BOTÓN VARITA MÁGICA ***** -->
+                    <button id="magic-wand-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Varita Mágica Eliminar (V)" disabled><i class="fas fa-wand-sparkles fa-fw"></i></button>
+                     <!-- **************************** -->
+                    <button id="line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Línea Conservar (L)" disabled><i class="fas fa-minus fa-fw"></i></button>
+                    <button id="eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Línea Borrador (Shift+L)" disabled><i class="fa-line-eraser"></i></button>
+                    <button id="continuous-keep-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Trazo Conservar (C/W)" disabled><i class="fa-continuous-keep-line"></i></button>
+                    <button id="continuous-eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Trazo Borrar (X/Q)" disabled><i class="fa-continuous-eraser-line"></i></button>
+                </div>
+                 <!-- ***** FIN CAMBIO ***** -->
+            </div>
+             <!-- Colores Seleccionados -->
+             <div id="selected-colors-section" class="space-y-2 hidden pt-4 border-t">
+                 <label class="block text-sm font-medium text-gray-700">Colores Seleccionados:</label>
+                 <div id="selected-colors-list" class="text-xs text-gray-600">
+                     <p id="no-colors-selected" class="italic text-center p-2">Ningún color. Usa <i class="fas fa-eye-dropper fa-fw"></i></p>
+                 </div>
+             </div>
+             <!-- Opciones Herramienta -->
+             <div id="brush-options-section" class="space-y-3 pt-4 border-t">
+                 <p class="text-sm font-medium text-gray-700 mb-2">Opciones Herramienta:</p>
+                 <div><label for="brush-size">Tamaño/Grosor: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                 <div id="feather-option"><label for="brush-feather">Difuminado: <span id="brush-feather-value">0.10</span></label><input type="range" id="brush-feather" min="0" max="1" step="0.05" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" title="Suavizado pincel/borrador/color" disabled></div>
+                 <div><label for="brush-opacity">Opacidad (Pincel): <span id="brush-opacity-value">1.00</span></label><input type="range" id="brush-opacity" min="0.05" max="1" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div>
+                 <div id="shape-option"><label>Forma (Pincel):</label><div class="flex space-x-2 mt-1"><button id="brush-shape-circle" class="brush-shape p-1 border rounded-full w-6 h-6 bg-gray-700 disabled:opacity-50" title="Circular" disabled></button><button id="brush-shape-square" class="brush-shape p-1 border rounded w-6 h-6 bg-gray-700 disabled:opacity-50" title="Cuadrado" disabled></button></div></div>
+             </div>
+             <!-- Acciones -->
+             <div class="pt-4 border-t space-y-3">
+                 <!-- Historial -->
+                 <div class="flex space-x-2">
+                     <button id="undo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)" disabled><i class="fas fa-undo"></i> (<span id="undo-count">0</span>)</button>
+                     <button id="redo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Rehacer (Ctrl+Y)" disabled><i class="fas fa-redo"></i> (<span id="redo-count">0</span>)</button>
+                     <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Resetear Máscara" disabled><i class="fas fa-trash-alt"></i> Reset</button>
+                 </div>
+                 <!-- Fondo Previsualización -->
+                 <div id="preview-bg-section" class="hidden space-y-1">
+                     <label class="block text-sm font-medium text-gray-700">Fondo Previsualización:</label>
+                     <div class="flex items-center space-x-2">
+                         <button id="preview-bg-toggle-btn" class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 border border-gray-300" title="Fondo damero" disabled>
+                             <i id="preview-bg-icon" class="fas fa-th fa-fw"></i>
+                         </button>
+                         <button id="preview-bg-black-btn" class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 border border-gray-300" title="Fondo negro sólido" disabled>
+                             <i class="fas fa-square fa-fw" style="color: black;"></i>
+                         </button>
+                         <input type="color" id="preview-bg-color-input" value="#FFFFFF" class="h-8 w-10 border border-gray-300 rounded disabled:opacity-50 p-1 cursor-pointer" title="Color fondo sólido personalizado" disabled>
+                     </div>
+                 </div>
+             </div>
+        </div> <!-- Fin Tools Section -->
+
+        <!-- Exportar / Copiar / Comparar -->
+         <div id="export-section" class="hidden pt-4 border-t space-y-2">
+             <h2 class="text-lg font-semibold mb-2">3. Guardar / Copiar</h2>
+             <button id="export-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback" disabled><i class="fas fa-download mr-1"></i> Exportar PNG</button>
+             <button id="copy-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback" disabled><i class="fas fa-copy mr-1"></i> Copiar Imagen</button>
+             <button id="compare-btn" class="w-full bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback mt-2" disabled><i class="fas fa-columns mr-1"></i> Comparar</button>
+             <p id="clipboard-support-warning" class="text-xs text-red-600 text-center hidden">Copiar no soportado.</p>
+        </div>
+    </aside>
+    <!-- Área de Trabajo -->
+    <section class="flex-grow bg-gray-300 rounded-lg shadow overflow-hidden relative" id="canvas-section">
+        <div id="canvas-outer-container">
+            <div id="canvas-inner-container">
+                <canvas id="image-canvas" class="hidden"></canvas>
+                <canvas id="preview-canvas" class="hidden"></canvas>
+            </div>
+             <p id="canvas-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">Carga una imagen</p>
+        </div>
+        <div id="loading-spinner" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden z-50 pointer-events-none"> <i class="fas fa-spinner fa-spin fa-3x text-blue-500"></i> <p class="text-lg font-semibold ml-3">Cargando...</p> </div>
+        <div id="processing-overlay" class="processing-overlay hidden"> <i class="fas fa-spinner fa-spin fa-3x"></i> <p id="processing-status-text">Procesando...</p> </div>
+        <div id="status-bar" class="absolute bottom-0 left-0 bg-black bg-opacity-60 text-white text-xs p-1 rounded-tr z-10 pointer-events-none">Zoom: <span id="zoom-level">100</span>% | Herramienta: <span id="current-tool-status">Ninguna</span> | Rueda=Zoom, Espacio+Arrastrar=Mover</div>
+    </section>
+</main>
+
+<!-- === Popup de Comparación === -->
+<div id="compare-popup-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000] hidden p-4">
+    <div id="compare-popup-content" class="bg-gray-100 p-4 md:p-6 rounded-lg shadow-xl max-w-5xl w-full relative flex flex-col max-h-[90vh]">
+        <button id="compare-popup-close" class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-3xl leading-none z-10 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">×</button>
+        <h3 class="text-xl md:text-2xl font-semibold mb-4 text-center text-gray-800 flex-shrink-0">Comparación Antes / Después</h3>
+        <div id="compare-container-wrapper" class="relative w-full flex-grow overflow-auto flex items-center justify-center p-2 bg-gray-300 rounded">
+            <img-comparison-slider class="rendered">
+                <img id="compare-before-img" slot="first" src="" alt="Antes" />
+                <img id="compare-after-img" slot="second" src="" alt="Después" />
+                 <svg slot="handle" class="compare-handle-icon" xmlns="http://www.w3.org/2000/svg" width="40" viewBox="-8 -3 16 6">
+                     <path d="M -5 -2 L -7 -2 L -7 2 L -5 2 L -5 3 L 5 3 L 5 2 L 7 2 L 7 -2 L 5 -2 L 5 -3 L -5 -3 L -5 -2" fill="currentColor" />
+                     <path d="M -4 -1 L -4 1 L -2 1 L -2 -1 L -4 -1 M 2 -1 L 2 1 L 4 1 L 4 -1 L 2 -1" fill="#fff"/>
+                 </svg>
+            </img-comparison-slider>
+        </div>
+        <p class="text-center text-sm text-gray-600 mt-2 flex-shrink-0">Arrastra el control deslizante</p>
+    </div>
+</div>
+<!-- === FIN Popup === -->
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await customElements.whenDefined('img-comparison-slider');
+        console.log("DOM Cargado - XocoStudio BG Remover (Varita + Color + Comparador) - img-comparison-slider definido");
+
+        // --- DOM Elements ---
+        const dropZone = document.getElementById('drop-zone'),
+            fileInput = document.getElementById('file-input'),
+            uploadBtn = document.getElementById('upload-btn'),
+            pasteBtn = document.getElementById('paste-btn'),
+            pasteSupportWarning = document.getElementById('paste-support-warning'),
+            filenameDisplay = document.getElementById('filename-display'),
+            canvasSection = document.getElementById('canvas-section'),
+            canvasOuterContainer = document.getElementById('canvas-outer-container'),
+            canvasInnerContainer = document.getElementById('canvas-inner-container'),
+            canvas = document.getElementById('image-canvas'),
+            previewCanvas = document.getElementById('preview-canvas'),
+            canvasPlaceholder = document.getElementById('canvas-placeholder'),
+            loadingSpinner = document.getElementById('loading-spinner'),
+            toolsSection = document.getElementById('tools-section'),
+            exportSection = document.getElementById('export-section'),
+            // Tool Buttons
+            colorPickerBtn = document.getElementById('color-picker-tool'),
+            brushBtn = document.getElementById('brush-tool'),
+            eraserBtn = document.getElementById('eraser-tool'),
+            magicWandBtn = document.getElementById('magic-wand-tool'), // <-- NUEVO Varita
+            lineBtn = document.getElementById('line-tool'),
+            eraserLineBtn = document.getElementById('eraser-line-tool'),
+            continuousKeepLineBtn = document.getElementById('continuous-keep-line-tool'),
+            continuousEraserLineBtn = document.getElementById('continuous-eraser-line-tool'),
+            // Action Buttons
+            removeEdgeBgBtn = document.getElementById('remove-edge-bg-btn'),
+            removeInnerHoleBtn = document.getElementById('remove-inner-hole-btn'),
+            applyColorRemovalBtn = document.getElementById('apply-color-removal-btn'),
+            // Options
+            brushOptionsSection = document.getElementById('brush-options-section'),
+            featherOptionDiv = document.getElementById('feather-option'),
+            shapeOptionDiv = document.getElementById('shape-option'),
+            brushSizeSlider = document.getElementById('brush-size'),
+            brushSizeValue = document.getElementById('brush-size-value'),
+            brushFeatherSlider = document.getElementById('brush-feather'),
+            brushFeatherValue = document.getElementById('brush-feather-value'),
+            brushOpacitySlider = document.getElementById('brush-opacity'),
+            brushOpacityValue = document.getElementById('brush-opacity-value'),
+            shapeCircleBtn = document.getElementById('brush-shape-circle'),
+            shapeSquareBtn = document.getElementById('brush-shape-square'),
+            edgeColorToleranceSlider = document.getElementById('edge-color-tolerance'),
+            edgeColorToleranceValueSpan = document.getElementById('edge-color-tolerance-value'),
+            // Selected Colors UI
+            selectedColorsSection = document.getElementById('selected-colors-section'),
+            selectedColorsListDiv = document.getElementById('selected-colors-list'),
+            noColorsSelectedP = document.getElementById('no-colors-selected'),
+            // History
+            undoBtn = document.getElementById('undo-btn'),
+            undoCountSpan = document.getElementById('undo-count'),
+            redoBtn = document.getElementById('redo-btn'),
+            redoCountSpan = document.getElementById('redo-count'),
+            resetBtn = document.getElementById('reset-btn'),
+            // Preview Background Controls
+            previewBgSection = document.getElementById('preview-bg-section'),
+            previewBgToggleBtn = document.getElementById('preview-bg-toggle-btn'),
+            previewBgIcon = document.getElementById('preview-bg-icon'),
+            previewBgBlackBtn = document.getElementById('preview-bg-black-btn'),
+            previewBgColorInput = document.getElementById('preview-bg-color-input'),
+            // Export/Copy/Compare
+            exportBtn = document.getElementById('export-btn'),
+            copyBtn = document.getElementById('copy-btn'),
+            clipboardSupportWarning = document.getElementById('clipboard-support-warning'),
+            compareBtn = document.getElementById('compare-btn'),
+            // Status/Overlays
+            zoomLevelSpan = document.getElementById('zoom-level'),
+            currentToolSpan = document.getElementById('current-tool-status'),
+            processingOverlay = document.getElementById('processing-overlay'),
+            processingStatusText = document.getElementById('processing-status-text'),
+            // Compare Popup Elements
+            comparePopupOverlay = document.getElementById('compare-popup-overlay'),
+            comparePopupContent = document.getElementById('compare-popup-content'),
+            comparePopupCloseBtn = document.getElementById('compare-popup-close'),
+            compareBeforeImg = document.getElementById('compare-before-img'),
+            compareAfterImg = document.getElementById('compare-after-img');
+
+        // --- State Variables ---
+        let ctx = null, previewCtx = null, maskCtx = null, originalImage = null, originalImageDataCache = null, maskCanvas = null, imageFilename = 'imagen';
+        let isDrawing = false, lastX = 0, lastY = 0, history = [], redoHistory = [];
+        let currentTool = 'eraser', brushOptions = { size: 50, feather: 0.1, opacity: 1.0, shape: 'circle' };
+        let zoomLevel = 1.0, panX = 0, panY = 0, isPanning = false, panStartX = 0, panStartY = 0, isSpacePressed = false;
+        let isDrawingLine = false, lineStartX = 0, lineStartY = 0;
+        let isDrawingContinuousLine = false, lastContinuousLinePoint = null;
+        let currentMousePos = { x: 0, y: 0 };
+        let isClipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.write);
+        let isClipboardReadSupported = !!(navigator.clipboard && navigator.clipboard.read);
+        let isFloodFilling = false, cancelFloodFillRequest = false; // Flood fill para Auto (Bordes)
+        let waitingForInnerHoleClick = false, holeRemoverFeedbackTimeout = null;
+        let isColorPickingActive = false, selectedBackgroundColors = [], isProcessingColorRemoval = false;
+        let previewMode = 'checkerboard', previewBackgroundColor = '#FFFFFF';
+        let isComparePopupOpen = false;
+        let isProcessingMagicWand = false; // Estado para Varita
+        const MAX_HISTORY = 30;
+
+        // --- Performance Throttling ---
+        let lastRenderTime = 0; const RENDER_THROTTLE = 16; // ms
+
+        // --- Verification ---
+        // ***** CAMBIO: Añadido magicWandBtn a la verificación *****
+        if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn || !magicWandBtn || !continuousKeepLineBtn || !continuousEraserLineBtn || !canvasOuterContainer || !canvasInnerContainer || !previewBgSection || !previewBgToggleBtn || !previewBgIcon || !previewBgBlackBtn || !previewBgColorInput || !toolsSection || !exportSection || !colorPickerBtn || !applyColorRemovalBtn || !selectedColorsSection || !selectedColorsListDiv || !compareBtn || !comparePopupOverlay || !comparePopupCloseBtn || !compareBeforeImg || !compareAfterImg || !undoBtn || !redoBtn || !resetBtn ) { console.error("ERROR CRÍTICO: Falta elemento DOM."); alert("Error: No se pudo iniciar."); return; }
+        console.log("Elementos DOM OK.");
+
+        // --- Initialization ---
+        setActiveTool('eraser');
+        updateToolOptionsDisplay();
+        setupImageLoadingListeners();
+        setupInteractionListeners();
+        setupToolControlListeners(); // Incluye Varita
+        setupPreviewBackgroundListeners();
+        setupComparePopupListeners();
+        checkClipboardSupport();
+        updateActionButtonsState();
+        updatePreviewBackground();
+        updateSelectedColorsUI();
+        console.log("Inicialización completada.");
+
+        // --- Helper Functions ---
+        function cancelContinuousLineDrawing(silent = false) { if (isDrawingContinuousLine) { if (!silent) console.log("Cancelando trazo continuo."); isDrawingContinuousLine = false; lastContinuousLinePoint = null; clearPreviewCanvas(); updateStatusBar(); canvasOuterContainer.style.cursor = getToolCursor(); updateActionButtonsState(); if (!isComparePopupOpen && !isColorPickingActive) drawToolPreview(currentMousePos.x, currentMousePos.y); return true; } return false; }
+        function cancelCurrentAction(silent = false) {
+            let actionCancelled = false;
+            if (isColorPickingActive) { if (!silent) console.log("Cancelando modo Selección Color."); isColorPickingActive = false; actionCancelled = true; }
+            if (waitingForInnerHoleClick) { if (!silent) console.log("Cancelando modo Eliminar Hueco."); waitingForInnerHoleClick = false; if (holeRemoverFeedbackTimeout) clearTimeout(holeRemoverFeedbackTimeout); holeRemoverFeedbackTimeout = null; if (removeInnerHoleBtn) { removeInnerHoleBtn.classList.remove('active-hole-remover', 'success', 'error', 'working', 'cancelling'); if (removeInnerHoleBtn.dataset.originalHtml) removeInnerHoleBtn.innerHTML = removeInnerHoleBtn.dataset.originalHtml; if (removeInnerHoleBtn.dataset.originalTitle) removeInnerHoleBtn.title = removeInnerHoleBtn.dataset.originalTitle; } actionCancelled = true; }
+            if (isDrawingLine) { if (!silent) console.log("Cancelando dibujo de línea."); isDrawingLine = false; clearPreviewCanvas(); actionCancelled = true; }
+            if (cancelContinuousLineDrawing(silent)) actionCancelled = true;
+            if (isDrawing) { if (!silent) console.log("Cancelando dibujo."); isDrawing = false; actionCancelled = true; }
+            // No cancelamos isProcessingMagicWand aquí, se maneja internamente en su función.
+            if (actionCancelled) { canvasOuterContainer.style.cursor = getToolCursor(); updateStatusBar(); updateActionButtonsState(); updateSelectedColorsUI(); if (!isComparePopupOpen && !isColorPickingActive && !waitingForInnerHoleClick) { drawToolPreview(currentMousePos.x, currentMousePos.y); } }
+            return actionCancelled;
+        }
+        function simulateEscapeKeyPressLogic() { if (isComparePopupOpen) { closeComparePopup(); console.log("Popup cerrado por Esc."); return true; } if (cancelCurrentAction(true)) { console.log("Acción cancelada por Esc."); if (!isComparePopupOpen && !isColorPickingActive && !waitingForInnerHoleClick) { drawToolPreview(currentMousePos.x, currentMousePos.y); } return true; } return false; }
+        function isGenerallyIdle() { return !isDrawing && !isDrawingLine && !isDrawingContinuousLine && !waitingForInnerHoleClick && !isColorPickingActive && !isFloodFilling && !isProcessingColorRemoval && !isProcessingMagicWand && !isPanning; } // Añadido isProcessingMagicWand
+
+        // --- Setup Functions ---
+        function setupImageLoadingListeners() { console.log("Configurando listeners carga..."); dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); }); dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); }); dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); const f = e.dataTransfer?.files?.[0]; if (f?.type.startsWith('image/')) handleFile(f); else if (f) alert('Suelta imagen válida.'); }); uploadBtn.addEventListener('click', () => fileInput.click()); pasteBtn.addEventListener('click', handlePasteButtonClick); fileInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f?.type.startsWith('image/')) { handleFile(f); e.target.value = null; } else if (f) alert('Selecciona imagen válida.'); }); window.addEventListener('paste', (e) => { const a = document.activeElement; if (isComparePopupOpen || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable) return; if (handleClipboardPaste(e.clipboardData)) e.preventDefault(); }); console.log("Listeners carga añadidos."); }
+        function setupInteractionListeners() { console.log("Configurando listeners interacción..."); window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp); canvasOuterContainer.addEventListener('mousedown', handleInteractionStart); canvasOuterContainer.addEventListener('mousemove', handleInteractionMove); window.addEventListener('mouseup', handleInteractionEnd); canvasOuterContainer.addEventListener('touchstart', (e) => handleInteractionStart(e.touches[0]), { passive: false }); canvasOuterContainer.addEventListener('touchmove', (e) => handleInteractionMove(e.touches[0]), { passive: false }); window.addEventListener('touchend', (e) => handleInteractionEnd(e.changedTouches[0])); window.addEventListener('touchcancel', (e) => handleInteractionEnd(e.changedTouches[0])); canvasOuterContainer.addEventListener('wheel', handleWheelZoom, { passive: false }); canvasOuterContainer.addEventListener('mouseleave', () => { if (!isDrawingLine && !isDrawingContinuousLine && !isComparePopupOpen && !isColorPickingActive) clearPreviewCanvas(); }); console.log("Listeners interacción añadidos."); }
+        function setupToolControlListeners() {
+             console.log("Configurando listeners herramientas (con varita)...");
+             // Tool selection buttons
+             colorPickerBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('color-picker'); });
+             brushBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('brush'); });
+             eraserBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('eraser'); });
+             magicWandBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('magic-wand'); }); // <-- Listener Varita
+             lineBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('line'); });
+             eraserLineBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('eraser-line'); });
+             continuousKeepLineBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('continuous-keep-line'); });
+             continuousEraserLineBtn.addEventListener('click', () => { if (isComparePopupOpen) return; setActiveTool('continuous-eraser-line'); });
+
+             // Tool options
+             brushSizeSlider.addEventListener('input', (e) => { if (isComparePopupOpen) return; brushOptions.size = parseInt(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             brushFeatherSlider.addEventListener('input', (e) => { if (isComparePopupOpen && !isColorPickingActive) return; brushOptions.feather = parseFloat(e.target.value); updateToolOptionsDisplay(); if(!isColorPickingActive) drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             brushOpacitySlider.addEventListener('input', (e) => { if (isComparePopupOpen) return; brushOptions.opacity = parseFloat(e.target.value); updateToolOptionsDisplay(); });
+             shapeCircleBtn.addEventListener('click', () => { if (isComparePopupOpen) return; brushOptions.shape = 'circle'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             shapeSquareBtn.addEventListener('click', () => { if (isComparePopupOpen) return; brushOptions.shape = 'square'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             edgeColorToleranceSlider.addEventListener('input', (e) => { edgeColorToleranceValueSpan.textContent = e.target.value; });
+
+             // History/Reset
+             undoBtn.addEventListener('click', () => { if (isComparePopupOpen) return; undo(); });
+             redoBtn.addEventListener('click', () => { if (isComparePopupOpen) return; redo(); });
+             resetBtn.addEventListener('click', () => { if (isComparePopupOpen || !originalImage || history.length <= 1) return; if (confirm('¿Estás seguro de que quieres resetear todas las ediciones?')) { cancelCurrentAction(true); resetMask(); selectedBackgroundColors = []; updateSelectedColorsUI(); } });
+
+             // Export/Copy
+             exportBtn.addEventListener('click', exportImage);
+             copyBtn.addEventListener('click', copyImageToClipboard);
+
+             // Auto/Hole/Color Actions
+             removeEdgeBgBtn.addEventListener('click', () => { if (isComparePopupOpen) return; cancelCurrentAction(true); if (isFloodFilling) { console.log("%cSolicitando cancelación BG...", 'color: orange;'); cancelFloodFillRequest = true; processingStatusText.textContent = "Cancelando..."; showButtonFeedback(removeEdgeBgBtn, 'cancelling', 'Cancelando...', 60000); } else if (isGenerallyIdle()) { handleRemoveBackgroundByFloodFill(); } else console.warn("Intento Auto BG mientras no idle."); });
+             removeInnerHoleBtn.addEventListener('click', () => { if (isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand) { console.warn("Ignorando clic en Hueco: Proceso activo."); showButtonFeedback(removeInnerHoleBtn, 'error', 'Ocupado', 1000); return; } if (waitingForInnerHoleClick) { cancelCurrentAction(true); } else { cancelCurrentAction(true); activateInnerHoleClickMode(); } });
+             applyColorRemovalBtn.addEventListener('click', () => { if (isComparePopupOpen) return; cancelCurrentAction(true); if (!originalImage || selectedBackgroundColors.length === 0 || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand) { console.warn("Aplicar Color bloqueado."); return; } if (isGenerallyIdle()) applyColorRemoval(); else console.warn("Intento Aplicar Color no idle."); });
+             selectedColorsListDiv.addEventListener('click', (e) => { if (e.target.classList.contains('remove-color-btn')) { const r = parseInt(e.target.dataset.r, 10), g = parseInt(e.target.dataset.g, 10), b = parseInt(e.target.dataset.b, 10); removeSelectedColor(r, g, b); } });
+
+             console.log("Listeners herramientas añadidos (con varita).");
+        }
+        function setupPreviewBackgroundListeners() { console.log("Configurando listeners preview bg..."); if (!previewBgToggleBtn || !previewBgBlackBtn || !previewBgColorInput) { console.error("Faltan controles preview bg."); return; } previewBgToggleBtn.addEventListener('click', () => { if (!originalImage || isComparePopupOpen) return; if (previewMode !== 'checkerboard') { previewMode = 'checkerboard'; console.log("Modo fondo:", previewMode); updatePreviewBackground(); updateActionButtonsState(); } }); previewBgBlackBtn.addEventListener('click', () => { if (!originalImage || isComparePopupOpen) return; previewMode = 'solid'; previewBackgroundColor = '#000000'; previewBgColorInput.value = '#000000'; console.log("Modo fondo: solid (negro)"); updatePreviewBackground(); updateActionButtonsState(); }); previewBgColorInput.addEventListener('input', (e) => { if (!originalImage || isComparePopupOpen) return; previewBackgroundColor = e.target.value; if (previewMode !== 'solid') { previewMode = 'solid'; } console.log("Modo fondo: solid (personalizado)", previewBackgroundColor); updatePreviewBackground(); updateActionButtonsState(); }); console.log("Listeners preview bg añadidos."); }
+        function setupComparePopupListeners() { console.log("Configurando listeners popup compare..."); if (!compareBtn || !comparePopupOverlay || !comparePopupCloseBtn) { console.error("Faltan elementos popup compare."); return; } compareBtn.addEventListener('click', openComparePopup); comparePopupCloseBtn.addEventListener('click', closeComparePopup); comparePopupOverlay.addEventListener('click', (e) => { if (e.target === comparePopupOverlay) closeComparePopup(); }); console.log("Listeners popup compare añadidos."); }
+
+        // --- Core Logic ---
+        function handleFile(file) { console.log('>>> handleFile:', file?.name); cancelCurrentAction(true); if (!file?.type?.startsWith('image/')) { alert('Archivo no válido.'); console.error('Tipo inválido:', file?.type); return; } const reader = new FileReader(); reader.onloadstart = () => { console.log('   onloadstart'); showLoadingState(file.name); }; reader.onload = (e) => { console.log('   onload'); if (!e.target?.result) { handleLoadingError(file.name, 'Error leer archivo.'); return; } originalImage = new Image(); originalImage.onload = () => { console.log(`  onload OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`); if (originalImage.naturalWidth === 0 || originalImage.naturalHeight === 0) { handleLoadingError(file.name, 'Dimensiones 0x0.'); originalImage = null; return; } initializeEditor(file.name, originalImage); }; originalImage.onerror = (err) => { console.error('onerror:', err); handleLoadingError(file.name, 'Error decodificar imagen.'); originalImage = null; }; originalImage.src = e.target.result; }; reader.onerror = (err) => { console.error('reader.onerror:', err); handleLoadingError(file.name, 'Error lectura.'); }; try { reader.readAsDataURL(file); } catch (error) { console.error("Error readAsDataURL:", error); handleLoadingError(file.name, 'Error iniciar lectura.'); } }
+        function showLoadingState(fileName) { console.log("Loading state:", fileName); cancelCurrentAction(true); closeComparePopup(true); loadingSpinner.classList.remove('hidden'); canvasPlaceholder.classList.add('hidden'); filenameDisplay.textContent = `Cargando: ${fileName}...`; toolsSection.classList.add('hidden'); previewBgSection.classList.add('hidden'); exportSection.classList.add('hidden'); canvas.classList.add('hidden'); previewCanvas.classList.add('hidden'); originalImage = null; originalImageDataCache = null; ctx = previewCtx = maskCtx = null; history = []; redoHistory = []; selectedBackgroundColors = []; updateSelectedColorsUI(); updateActionButtonsState(); }
+        function handleLoadingError(fileName, message) { console.error(`Error cargando ${fileName || 'img'}: ${message}`); cancelCurrentAction(true); closeComparePopup(true); alert(`Error cargar "${fileName || 'img'}":\n${message}`); loadingSpinner.classList.add('hidden'); canvasPlaceholder.classList.remove('hidden'); filenameDisplay.textContent = `Error carga`; toolsSection.classList.add('hidden'); previewBgSection.classList.add('hidden'); exportSection.classList.add('hidden'); originalImage = null; originalImageDataCache = null; ctx = previewCtx = maskCtx = null; history = []; redoHistory = []; selectedBackgroundColors = []; updateSelectedColorsUI(); updateActionButtonsState(); }
+        function initializeEditor(fileName, loadedImage) { console.log(">>> initializeEditor:", fileName); cancelCurrentAction(true); closeComparePopup(true); if (!loadedImage || !loadedImage.naturalWidth || !loadedImage.naturalHeight) { handleLoadingError(fileName, "Datos imagen inválidos."); return; } imageFilename = fileName.replace(/\.[^/.]+$/, "") || 'imagen_editada'; filenameDisplay.textContent = `Editando: ${fileName} (${loadedImage.naturalWidth}x${loadedImage.naturalHeight})`; try { ctx = canvas.getContext('2d', { willReadFrequently: false }); previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true }); if (!ctx || !previewCtx) throw new Error("Contextos principales null."); console.log("   Contextos OK."); } catch (e) { console.error("ERROR FATAL contextos:", e); handleLoadingError(fileName, "Error interno contexto."); return; } if (!setupCanvases(loadedImage)) { handleLoadingError(fileName, "Error configurando lienzos."); return; } cacheOriginalImageData(); resetMask(); selectedBackgroundColors = []; updateSelectedColorsUI(); centerAndFitImage(); requestRender(); toolsSection.classList.remove('hidden'); previewBgSection.classList.remove('hidden'); exportSection.classList.remove('hidden'); canvas.classList.remove('hidden'); previewCanvas.classList.remove('hidden'); loadingSpinner.classList.add('hidden'); canvasPlaceholder.classList.add('hidden'); setActiveTool('eraser'); updatePreviewBackground(); updateActionButtonsState(); console.log("<<< initializeEditor completado."); }
+        function setupCanvases(img) { console.log(">>> setupCanvases"); if (!img?.naturalWidth || !img?.naturalHeight || !canvas || !previewCanvas || !canvasInnerContainer) return false; const w = img.naturalWidth, h = img.naturalHeight; canvas.width = w; canvas.height = h; previewCanvas.width = w; previewCanvas.height = h; canvasInnerContainer.style.width = `${w}px`; canvasInnerContainer.style.height = `${h}px`; try { maskCanvas = document.createElement('canvas'); maskCanvas.width = w; maskCanvas.height = h; maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true }); if (!maskCtx) throw new Error("maskCtx null."); console.log("   maskCtx creado."); } catch (e) { alert("Error fatal: No se pudo crear máscara."); console.error("Error creando maskCtx:", e); maskCanvas = maskCtx = null; return false; } console.log(`   Canvases ${w}x${h}`); return true; }
+        function cacheOriginalImageData() { if (!originalImage || !canvas || !maskCanvas) { originalImageDataCache = null; console.warn("No se pudo cachear ImageData."); return; } console.log("Cacheando ImageData..."); const tempC = document.createElement('canvas'); tempC.width = originalImage.naturalWidth; tempC.height = originalImage.naturalHeight; const tempCtx = tempC.getContext('2d', { willReadFrequently: true }); if (!tempCtx) { console.error("Error ctx temporal cache."); originalImageDataCache = null; return; } try { tempCtx.drawImage(originalImage, 0, 0); originalImageDataCache = tempCtx.getImageData(0, 0, tempC.width, tempC.height); console.log("   ImageData cacheada OK."); } catch (e) { console.error("Error getImageData cache (¿CORS?):", e); alert("Advertencia: No se pudo acceder a píxeles originales (¿CORS?). Herramientas auto/color/varita pueden fallar."); originalImageDataCache = null; } }
+        function centerAndFitImage() { if (!originalImage || !canvasOuterContainer) return; const imgW = originalImage.naturalWidth, imgH = originalImage.naturalHeight; const contW = canvasOuterContainer.clientWidth, contH = canvasOuterContainer.clientHeight; if (contW <= 0 || contH <= 0) { console.warn("Contenedor sin dimensiones."); return; } zoomLevel = Math.min(1, Math.min(contW / imgW, contH / imgH) * 0.95); panX = (contW - imgW * zoomLevel) / 2; panY = (contH - imgH * zoomLevel) / 2; updateTransform(); updateStatusBar(); console.log(`Imagen centrada: zoom=${zoomLevel.toFixed(2)}, panX=${panX.toFixed(0)}, panY=${panY.toFixed(0)}`); }
+        function resetMask() { if (!maskCtx || !maskCanvas || !originalImage) return; console.log("Reseteando máscara."); maskCtx.fillStyle = 'white'; maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height); history = []; redoHistory = []; saveStateToHistory(); updateActionButtonsState(); requestRender(); }
+
+        // --- Rendering & Previews ---
+        function requestRender() { const n = performance.now(); if (n - lastRenderTime >= RENDER_THROTTLE) { renderCanvas(); lastRenderTime = n; } }
+        function renderCanvas() { if (!ctx || !originalImage || !maskCanvas) return; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(originalImage, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(maskCanvas, 0, 0); ctx.globalCompositeOperation = 'source-over'; }
+        function clearPreviewCanvas() { if (previewCtx) previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height); }
+        function drawToolPreview(ix, iy) {
+             clearPreviewCanvas();
+             if (isComparePopupOpen || isPanning || isFloodFilling || isProcessingColorRemoval || isColorPickingActive || waitingForInnerHoleClick || isProcessingMagicWand) return; // Añadido isProcessingMagicWand
+             if (currentTool === 'brush' || currentTool === 'eraser') drawBrushPreview(ix, iy);
+             else if (isDrawingLine && (currentTool === 'line' || currentTool === 'eraser-line')) { drawSimpleLineMarker(lineStartX, lineStartY); drawSimpleLinePreview(lineStartX, lineStartY, ix, iy); }
+             else if (isDrawingContinuousLine && (currentTool === 'continuous-keep-line' || currentTool === 'continuous-eraser-line')) { if (lastContinuousLinePoint) { drawContinuousLineMarker(lastContinuousLinePoint.x, lastContinuousLinePoint.y); drawContinuousLinePreview(lastContinuousLinePoint.x, lastContinuousLinePoint.y, ix, iy); } }
+             // ***** CAMBIO: Incluir 'magic-wand' en crosshair *****
+             else if (['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line', 'magic-wand'].includes(currentTool)) drawCrosshairPreview(ix, iy);
+        }
+        function drawBrushPreview(ix, iy) { if (!previewCtx || !originalImage) return; const s = brushOptions.size, f = s * brushOptions.feather, sr = Math.max(0, s / 2 - f / 2), tr = s / 2; previewCtx.save(); previewCtx.globalAlpha = 0.6; const pc = (currentTool === 'eraser') ? 'rgba(255,0,0,0.7)' : 'rgba(0,0,0,0.7)', oc = 'rgba(255,255,255,0.9)'; if (brushOptions.shape === 'circle') { const g = previewCtx.createRadialGradient(ix, iy, sr, ix, iy, tr); g.addColorStop(0, pc); g.addColorStop(1, 'rgba(0,0,0,0)'); previewCtx.fillStyle = g; previewCtx.beginPath(); previewCtx.arc(ix, iy, tr, 0, Math.PI * 2); previewCtx.fill(); previewCtx.strokeStyle = oc; previewCtx.lineWidth = 1 / zoomLevel; previewCtx.stroke(); } else { const hs = s / 2; previewCtx.fillStyle = pc; previewCtx.fillRect(ix - hs, iy - hs, s, s); previewCtx.strokeStyle = oc; previewCtx.lineWidth = 1 / zoomLevel; previewCtx.strokeRect(ix - hs, iy - hs, s, s); } previewCtx.restore(); }
+        function drawSimpleLineMarker(ix, iy) { if (!previewCtx) return; const k = currentTool === 'line'; previewCtx.fillStyle = k ? 'rgba(0,255,0,0.7)' : 'rgba(255,0,0,0.7)'; previewCtx.beginPath(); previewCtx.arc(ix, iy, 5 / zoomLevel, 0, Math.PI * 2); previewCtx.fill(); }
+        function drawSimpleLinePreview(sx, sy, ex, ey) { if (!previewCtx) return; const k = currentTool === 'line'; previewCtx.save(); previewCtx.beginPath(); previewCtx.moveTo(sx, sy); previewCtx.lineTo(ex, ey); previewCtx.strokeStyle = k ? 'rgba(0,255,0,0.5)' : 'rgba(255,0,0,0.5)'; previewCtx.lineWidth = brushOptions.size; previewCtx.lineCap = 'round'; previewCtx.stroke(); previewCtx.restore(); }
+        function drawContinuousLineMarker(ix, iy) { if (!previewCtx) return; const k = currentTool === 'continuous-keep-line'; previewCtx.fillStyle = k ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.8)'; previewCtx.beginPath(); previewCtx.arc(ix, iy, 4 / zoomLevel, 0, Math.PI * 2); previewCtx.fill(); }
+        function drawContinuousLinePreview(sx, sy, ex, ey) { if (!previewCtx) return; const k = currentTool === 'continuous-keep-line'; previewCtx.save(); previewCtx.beginPath(); previewCtx.moveTo(sx, sy); previewCtx.lineTo(ex, ey); previewCtx.strokeStyle = k ? 'rgba(0,255,0,0.5)' : 'rgba(255,0,0,0.5)'; previewCtx.lineWidth = brushOptions.size; previewCtx.lineCap = 'round'; previewCtx.stroke(); previewCtx.restore(); }
+        function drawCrosshairPreview(ix, iy) { if (!previewCtx) return; const cs = 10 / zoomLevel; previewCtx.save(); previewCtx.strokeStyle = 'rgba(0,0,0,0.6)'; previewCtx.lineWidth = 1 / zoomLevel; previewCtx.beginPath(); previewCtx.moveTo(ix - cs, iy); previewCtx.lineTo(ix + cs, iy); previewCtx.moveTo(ix, iy - cs); previewCtx.lineTo(ix, iy + cs); previewCtx.stroke(); previewCtx.restore(); }
+
+        // --- Mask Modification ---
+        function applyMaskModification(dx, dy, t, o) { if (!maskCtx || (t !== 'brush' && t !== 'eraser')) return; const ie = t === 'eraser'; maskCtx.save(); maskCtx.globalCompositeOperation = ie ? 'destination-out' : 'source-over'; const s = o.size, hs = s / 2, f = o.feather, op = o.opacity, c = ie ? '0,0,0' : '255,255,255'; if (o.shape === 'circle') { const sr = Math.max(0, hs * (1 - f)), g = maskCtx.createRadialGradient(dx, dy, sr, dx, dy, hs); g.addColorStop(0, `rgba(${c}, ${op})`); g.addColorStop(1, `rgba(${c}, 0)`); maskCtx.fillStyle = g; maskCtx.beginPath(); maskCtx.arc(dx, dy, hs, 0, Math.PI * 2); maskCtx.fill(); } else { maskCtx.fillStyle = `rgba(${c}, ${op})`; maskCtx.fillRect(dx - hs, dy - hs, s, s); } maskCtx.restore(); }
+        function drawLineOnMask(x1, y1, x2, y2, t, o) { if (!maskCtx) return; const ie = t === 'eraser' || t === 'eraser-line' || t === 'continuous-eraser-line', s = o.size, op = o.opacity; maskCtx.save(); maskCtx.globalCompositeOperation = ie ? 'destination-out' : 'source-over'; maskCtx.beginPath(); maskCtx.moveTo(x1, y1); maskCtx.lineTo(x2, y2); maskCtx.lineWidth = s; maskCtx.lineCap = 'round'; maskCtx.lineJoin = 'round'; const c = ie ? `rgba(0,0,0,${op})` : `rgba(255,255,255,${op})`; maskCtx.strokeStyle = c; maskCtx.stroke(); maskCtx.restore(); requestRender(); }
+
+        // --- Interaction Handling ---
+        function getInteractionPos(e) { if (!canvasOuterContainer) return { screenX: 0, screenY: 0, imageX: 0, imageY: 0 }; const r = canvasOuterContainer.getBoundingClientRect(), cx = e.clientX ?? e.pageX ?? 0, cy = e.clientY ?? e.pageY ?? 0, sx = cx - r.left, sy = cy - r.top, ix = (sx - panX) / zoomLevel, iy = (sy - panY) / zoomLevel; return { screenX: sx, screenY: sy, imageX: ix, imageY: iy }; }
+        function handleInteractionStart(e) {
+            // Priority 1: Color Picking
+            if (isColorPickingActive && !isComparePopupOpen) { if (!originalImage) return; if (e.preventDefault && e.cancelable) e.preventDefault(); const { imageX: ix, imageY: iy } = getInteractionPos(e); pickColorAt(ix, iy); return; }
+            // Priority 2: Hole Clicking
+            if (waitingForInnerHoleClick) { if (!originalImage || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand) { console.warn("Interacción Clic-Hueco ignorada."); return; } if (e.preventDefault && e.cancelable) e.preventDefault(); const { imageX: ix, imageY: iy } = getInteractionPos(e); removeInnerHoleAt(ix, iy); return; }
+            // Block other interactions if popup open or busy
+            if (isComparePopupOpen || !originalImage || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand) { return; }
+
+            // Standard Interaction Logic
+            if (e.preventDefault && e.cancelable) e.preventDefault();
+            const { screenX: sx, screenY: sy, imageX: ix, imageY: iy } = getInteractionPos(e);
+
+            if (isSpacePressed) { isPanning = true; panStartX = sx - panX; panStartY = sy - panY; canvasOuterContainer.style.cursor = 'grabbing'; return; }
+
+            switch (currentTool) {
+                // ***** CAMBIO: Añadido case 'magic-wand' *****
+                case 'magic-wand':
+                    applyMagicWand(ix, iy); // Llama a la función de la varita
+                    break;
+                // *******************************************
+                case 'line': case 'eraser-line': if (!isDrawingLine) { isDrawingLine = true; lineStartX = ix; lineStartY = iy; updateActionButtonsState(); drawToolPreview(ix, iy); canvasOuterContainer.style.cursor = 'crosshair'; } else { drawLineOnMask(lineStartX, lineStartY, ix, iy, currentTool, brushOptions); saveStateToHistory(); isDrawingLine = false; clearPreviewCanvas(); updateActionButtonsState(); canvasOuterContainer.style.cursor = getToolCursor(); drawToolPreview(ix, iy); } break;
+                case 'continuous-keep-line': case 'continuous-eraser-line': if (!isDrawingContinuousLine) { isDrawingContinuousLine = true; lastContinuousLinePoint = { x: ix, y: iy }; updateActionButtonsState(); drawToolPreview(ix, iy); canvasOuterContainer.style.cursor = 'crosshair'; } else { drawLineOnMask(lastContinuousLinePoint.x, lastContinuousLinePoint.y, ix, iy, currentTool, brushOptions); lastContinuousLinePoint = { x: ix, y: iy }; saveStateToHistory(); drawToolPreview(ix, iy); } break;
+                case 'brush': case 'eraser': default: if (isDrawingLine) { isDrawingLine = false; clearPreviewCanvas(); updateActionButtonsState(); } cancelContinuousLineDrawing(true); isDrawing = true; lastX = ix; lastY = iy; updateActionButtonsState(); applyMaskModification(ix, iy, currentTool, brushOptions); requestRender(); canvasOuterContainer.style.cursor = 'none'; drawToolPreview(ix, iy); break;
+            }
+        }
+        function handleInteractionMove(e) { if ((isComparePopupOpen && !waitingForInnerHoleClick) || isColorPickingActive) { canvasOuterContainer.style.cursor = getToolCursor(); return; } if (waitingForInnerHoleClick) { canvasOuterContainer.style.cursor = getToolCursor(); return; } if (!originalImage) return; const { screenX: sx, screenY: sy, imageX: ix, imageY: iy } = getInteractionPos(e); currentMousePos = { x: ix, y: iy }; const busy = isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand; if (isPanning) { panX = sx - panStartX; panY = sy - panStartY; updateTransform(); updateStatusBar(); } else if (busy) { canvasOuterContainer.style.cursor = getToolCursor(); clearPreviewCanvas(); } else if (isDrawing) { drawLineOnMask(lastX, lastY, ix, iy, currentTool, brushOptions); lastX = ix; lastY = iy; drawToolPreview(ix, iy); canvasOuterContainer.style.cursor = 'none'; } else { drawToolPreview(ix, iy); canvasOuterContainer.style.cursor = (currentTool === 'brush' || currentTool === 'eraser') ? 'none' : getToolCursor(); } }
+        function handleInteractionEnd(e) { if (isComparePopupOpen || isColorPickingActive) return; if (isPanning) { isPanning = false; canvasOuterContainer.style.cursor = getToolCursor(); } else if (isDrawing) { isDrawing = false; saveStateToHistory(); updateActionButtonsState(); canvasOuterContainer.style.cursor = 'none'; drawToolPreview(currentMousePos.x, currentMousePos.y); } }
+        function handleKeyDown(e) {
+            if (isComparePopupOpen && e.key === 'Escape') { e.preventDefault(); closeComparePopup(); return; }
+            if (isComparePopupOpen) return;
+
+            const finp = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable;
+            if (e.key === 'Escape') { const c = simulateEscapeKeyPressLogic(); if (c || !finp) e.preventDefault(); return; }
+
+            const idle = isGenerallyIdle();
+            if (e.key === ' ' && !isSpacePressed && !e.repeat && idle && !finp) { isSpacePressed = true; canvasOuterContainer.style.cursor = 'grab'; e.preventDefault(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !e.repeat) { if (idle) { e.preventDefault(); undo(); } else console.log("Undo bloqueado."); }
+            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z')) && !e.repeat) { if (idle) { e.preventDefault(); redo(); } else console.log("Redo bloqueado."); }
+
+            if (idle && !finp && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                const k = e.key.toLowerCase();
+                let targetTool = null;
+                switch (k) {
+                    case 'p': targetTool = 'color-picker'; break;
+                    case 'b': targetTool = 'brush'; break;
+                    case 'e': targetTool = 'eraser'; break;
+                    // ***** CAMBIO: Añadido atajo 'v' para Varita *****
+                    case 'v': targetTool = 'magic-wand'; break;
+                    // ********************************************
+                    case 'l': targetTool = e.shiftKey ? 'eraser-line' : 'line'; break;
+                    case 'c': case 'w': targetTool = 'continuous-keep-line'; break;
+                    case 'x': case 'q': targetTool = 'continuous-eraser-line'; break;
+                }
+                if (targetTool) { e.preventDefault(); setActiveTool(targetTool); }
+            }
+        }
+        function handleKeyUp(e) { if (isComparePopupOpen && e.key !== ' ') return; if (e.key === ' ') { isSpacePressed = false; if (!isPanning) canvasOuterContainer.style.cursor = getToolCursor(); e.preventDefault(); } }
+        function handleWheelZoom(e) { if (isComparePopupOpen || !originalImage || !isGenerallyIdle()) return; e.preventDefault(); const { screenX: sx, screenY: sy } = getInteractionPos(e); const zf = e.deltaY < 0 ? 1.1 : 1 / 1.1; zoomInOut(zf, sx, sy); }
+        function zoomInOut(f, px, py) { if (!originalImage) return; const cz = zoomLevel, nz = Math.max(0.1, Math.min(cz * f, 15)); if (nz === cz) return; const dx = (px - panX) * (nz / cz - 1), dy = (py - panY) * (nz / cz - 1); zoomLevel = nz; panX -= dx; panY -= dy; updateTransform(); updateStatusBar(); clearPreviewCanvas(); if (!isComparePopupOpen && !isColorPickingActive) drawToolPreview(currentMousePos.x, currentMousePos.y); }
+
+        // --- Tool Management ---
+        function setActiveTool(tool) {
+            if (isComparePopupOpen) return;
+
+            if (tool !== 'color-picker' && isColorPickingActive) cancelCurrentAction(true);
+            if (tool !== 'hole-remover' && waitingForInnerHoleClick) cancelCurrentAction(true);
+            if (tool !== 'line' && tool !== 'eraser-line' && isDrawingLine) cancelCurrentAction(true);
+            if (tool !== 'continuous-keep-line' && tool !== 'continuous-eraser-line' && isDrawingContinuousLine) cancelCurrentAction(true);
+            if (tool !== 'brush' && tool !== 'eraser' && tool !== 'magic-wand' && isDrawing) cancelCurrentAction(true); // Magic wand doesn't involve 'isDrawing'
+
+            currentTool = tool;
+            isColorPickingActive = (tool === 'color-picker');
+
+            console.log("Herramienta activa:", tool);
+            // ***** CAMBIO: Añadido magicWandBtn a la lista *****
+            const allToolButtons = [colorPickerBtn, brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn, removeInnerHoleBtn];
+            allToolButtons.forEach(b => b?.classList.remove('active-tool', 'active-color-picker', 'active-hole-remover'));
+
+            if (isColorPickingActive) { colorPickerBtn?.classList.add('active-color-picker'); }
+            else if (waitingForInnerHoleClick) { removeInnerHoleBtn?.classList.add('active-hole-remover'); }
+            else { const activeBtn = document.getElementById(`${tool}-tool`); activeBtn?.classList.add('active-tool'); }
+
+            const isBrushOrEraser = tool === 'brush' || tool === 'eraser';
+            const isAnyLineBasedTool = ['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line'].includes(tool);
+            // ***** CAMBIO: Varita no necesita opciones de pincel específicas (tamaño, forma, opacidad, difuminado), solo tolerancia *****
+            const showBrushOptionsPanel = isBrushOrEraser || isAnyLineBasedTool;
+
+            if(brushOptionsSection) brushOptionsSection.style.display = showBrushOptionsPanel ? 'block' : 'none';
+            if(brushSizeSlider?.parentElement) brushSizeSlider.parentElement.style.display = (isBrushOrEraser || isAnyLineBasedTool) ? 'block' : 'none';
+            if(featherOptionDiv) featherOptionDiv.style.display = (isBrushOrEraser || tool === 'color-picker' || tool === 'apply-color') ? 'block' : 'none'; // Feather no aplica a varita
+            if(shapeOptionDiv) shapeOptionDiv.style.display = isBrushOrEraser ? 'block' : 'none'; // Shape no aplica a varita
+            if(brushOpacitySlider?.parentElement) brushOpacitySlider.parentElement.style.display = (isBrushOrEraser || isAnyLineBasedTool) ? 'block' : 'none'; // Opacity no aplica a varita
+            if(selectedColorsSection) selectedColorsSection.style.display = (isColorPickingActive && originalImage) ? 'block' : 'none';
+
+            canvasOuterContainer.style.cursor = getToolCursor();
+            updateStatusBar();
+            updateToolOptionsDisplay();
+            updateActionButtonsState();
+            clearPreviewCanvas();
+            if (!isColorPickingActive && !waitingForInnerHoleClick) { drawToolPreview(currentMousePos.x, currentMousePos.y); }
+        }
+        function getToolCursor() {
+             if (isColorPickingActive) return 'crosshair';
+             if (waitingForInnerHoleClick) return 'crosshair';
+             if (isComparePopupOpen) return 'default';
+             if (isSpacePressed && !isPanning) return 'grab';
+             if (isPanning) return 'grabbing';
+             if (currentTool === 'brush' || currentTool === 'eraser') return 'none';
+             // ***** CAMBIO: Añadido 'magic-wand' *****
+             if (['line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line', 'magic-wand'].includes(currentTool)) return 'crosshair';
+             return 'default';
+        }
+        function updateToolOptionsDisplay() { if (brushSizeValue) brushSizeValue.textContent = brushOptions.size; if (brushFeatherValue) brushFeatherValue.textContent = brushOptions.feather.toFixed(2); if (brushOpacityValue) brushOpacityValue.textContent = brushOptions.opacity.toFixed(2); if (shapeCircleBtn) shapeCircleBtn.classList.toggle('active-shape', brushOptions.shape === 'circle'); if (shapeSquareBtn) shapeSquareBtn.classList.toggle('active-shape', brushOptions.shape === 'square'); }
+        function updateTransform() { if (canvasInnerContainer) canvasInnerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`; }
+        function updateStatusBar() {
+             if (zoomLevelSpan) zoomLevelSpan.textContent = Math.round(zoomLevel * 100);
+             if (!currentToolSpan) return;
+             let tn = 'Ninguna';
+             if (waitingForInnerHoleClick) tn = 'Eliminar Hueco (Clic)';
+             else if (isColorPickingActive) tn = 'Seleccionar Color (P)';
+             else if (isComparePopupOpen) tn = 'Comparando';
+             else if (!originalImage) tn = 'Ninguna (Carga imagen)';
+             else {
+                 switch (currentTool) {
+                     case 'brush': tn = 'Pincel (B)'; break;
+                     case 'eraser': tn = 'Borrador (E)'; break;
+                     // ***** CAMBIO: Añadido 'magic-wand' *****
+                     case 'magic-wand': tn = 'Varita Mágica (V)'; break;
+                     // ************************************
+                     case 'line': tn = 'Línea (L)'; break;
+                     case 'eraser-line': tn = 'Línea Borrar (Shift+L)'; break;
+                     case 'continuous-keep-line': tn = 'Trazo Conservar (C/W)'; break;
+                     case 'continuous-eraser-line': tn = 'Trazo Borrar (X/Q)'; break;
+                     default: tn = 'Desconocido';
+                 }
+                 if (isDrawingLine) tn += ' (Dibujando...)';
+                 else if (isDrawingContinuousLine) tn += ' (Trazando...)';
+                 else if (isDrawing) tn += ' (Pintando...)';
+                 else if (isPanning) tn += ' (Moviendo...)';
+                 else if (isProcessingMagicWand) tn += ' (Procesando Varita...)'; // Podría añadirse si el proceso es largo
+             }
+             currentToolSpan.textContent = tn;
+         }
+        function updateActionButtonsState() {
+            const imageLoaded = !!originalImage && !!ctx && !!maskCtx;
+            const canUndo = history.length > 1;
+            const canRedo = redoHistory.length > 0;
+            const idle = isGenerallyIdle(); // Usa la función que incluye varita
+
+            if (isComparePopupOpen) {
+                // Disable MOST controls
+                 const controlsToDisable = [ uploadBtn, pasteBtn, colorPickerBtn, brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn, removeEdgeBgBtn, removeInnerHoleBtn, applyColorRemovalBtn, brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn, edgeColorToleranceSlider, undoBtn, redoBtn, resetBtn, previewBgToggleBtn, previewBgBlackBtn, previewBgColorInput, exportBtn, copyBtn, compareBtn ];
+                controlsToDisable.forEach(el => { if (el) el.disabled = true; });
+                // Clear active tool classes
+                [colorPickerBtn, brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn].forEach(btn => btn?.classList.remove('active-tool', 'active-color-picker'));
+                 // Handle hole remover specifically
+                 if (removeInnerHoleBtn) { removeInnerHoleBtn.disabled = !(imageLoaded && !isFloodFilling && !isProcessingColorRemoval && !isProcessingMagicWand); removeInnerHoleBtn.classList.toggle('active-hole-remover', waitingForInnerHoleClick && !removeInnerHoleBtn.disabled); }
+                 // Reset active background option
+                 [previewBgToggleBtn, previewBgBlackBtn, previewBgColorInput].forEach(el => el?.classList.remove('active-bg-option'));
+                 return;
+            }
+
+            // Normal State
+            undoBtn.disabled = !(imageLoaded && canUndo && idle);
+            redoBtn.disabled = !(imageLoaded && canRedo && idle);
+            undoCountSpan.textContent = Math.max(0, history.length - 1);
+            redoCountSpan.textContent = redoHistory.length;
+            resetBtn.disabled = !(imageLoaded && canUndo && idle);
+            exportBtn.disabled = !(imageLoaded && idle);
+            copyBtn.disabled = !(imageLoaded && isClipboardWriteSupported && idle);
+            pasteBtn.disabled = !(isClipboardReadSupported && idle);
+            if (compareBtn) compareBtn.disabled = !(imageLoaded && idle);
+
+            // ***** CAMBIO: Añadido magicWandBtn a manualDrawingTools *****
+            const manualDrawingTools = [brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn];
+            manualDrawingTools.forEach(btn => { if (btn) btn.disabled = !(imageLoaded && idle); });
+
+            if (colorPickerBtn) colorPickerBtn.disabled = !(imageLoaded && (idle || isColorPickingActive));
+            if (removeInnerHoleBtn) { removeInnerHoleBtn.disabled = !(imageLoaded && (idle || waitingForInnerHoleClick) && !isFloodFilling && !isProcessingColorRemoval && !isProcessingMagicWand); removeInnerHoleBtn.classList.toggle('active-hole-remover', waitingForInnerHoleClick && !removeInnerHoleBtn.disabled); }
+            removeEdgeBgBtn.disabled = !(imageLoaded && idle && !isFloodFilling);
+            applyColorRemovalBtn.disabled = !(imageLoaded && selectedBackgroundColors.length > 0 && idle && !isProcessingColorRemoval && !isProcessingMagicWand);
+
+            // Options
+            const disableStrictIdleOptions = !(imageLoaded && idle);
+            const disableUnlessPickingOrIdle = !(imageLoaded && (idle || isColorPickingActive));
+            if (brushSizeSlider) brushSizeSlider.disabled = !(imageLoaded && idle && (currentTool === 'brush' || currentTool === 'eraser' || currentTool === 'line' || currentTool === 'eraser-line' || currentTool === 'continuous-keep-line' || currentTool === 'continuous-eraser-line')); // Size no aplica a Varita
+            if (brushFeatherSlider) brushFeatherSlider.disabled = !(imageLoaded && (idle || isColorPickingActive)); // Feather sí aplica a color
+            if (brushOpacitySlider) brushOpacitySlider.disabled = !(imageLoaded && idle && (currentTool === 'brush' || currentTool === 'eraser' || currentTool === 'line' || currentTool === 'eraser-line' || currentTool === 'continuous-keep-line' || currentTool === 'continuous-eraser-line')); // Opacity no aplica a Varita
+            if (shapeCircleBtn) shapeCircleBtn.disabled = !(imageLoaded && idle && (currentTool === 'brush' || currentTool === 'eraser')); // Shape no aplica a Varita
+            if (shapeSquareBtn) shapeSquareBtn.disabled = !(imageLoaded && idle && (currentTool === 'brush' || currentTool === 'eraser'));
+            // ***** CAMBIO: Habilitar tolerancia si la varita está activa *****
+            if (edgeColorToleranceSlider) edgeColorToleranceSlider.disabled = !(imageLoaded && (idle || isColorPickingActive || waitingForInnerHoleClick || currentTool === 'magic-wand'));
+
+            // Preview Background Controls
+            if (previewBgToggleBtn) previewBgToggleBtn.disabled = !imageLoaded;
+            if (previewBgBlackBtn) previewBgBlackBtn.disabled = !imageLoaded;
+            if (previewBgColorInput) previewBgColorInput.disabled = !imageLoaded;
+
+            // Update active tool classes (excluyendo hole remover)
+            if (colorPickerBtn) colorPickerBtn.classList.toggle('active-color-picker', isColorPickingActive && !colorPickerBtn.disabled);
+            manualDrawingTools.forEach(btn => {
+                if (btn) {
+                    const isActive = btn.id.startsWith(currentTool + '-tool');
+                    btn.classList.toggle('active-tool', isActive && !isColorPickingActive && !waitingForInnerHoleClick && !btn.disabled);
+                }
+            });
+            // Update active background option
+            updatePreviewBackgroundVisualState(); // Llama a función separada para claridad
+        }
+        function updatePreviewBackgroundVisualState() {
+             if (!previewBgToggleBtn || !previewBgBlackBtn || !previewBgColorInput) return;
+             previewBgToggleBtn.classList.toggle('active-bg-option', previewMode === 'checkerboard');
+             previewBgBlackBtn.classList.toggle('active-bg-option', previewMode === 'solid' && previewBackgroundColor === '#000000');
+             previewBgColorInput.classList.toggle('active-bg-option', previewMode === 'solid' && previewBackgroundColor !== '#000000');
+        }
+
+
+        // --- Utility Functions ---
+        function showButtonFeedback(button, status, message = null, duration = 1500) { if (!button) return; const isHoleRemoverButton = button.id === 'remove-inner-hole-btn'; const isColorPickerButton = button.id === 'color-picker-tool'; const isWorkingOrCancelling = status === 'working' || status === 'cancelling'; if (!button.dataset.originalHtml) button.dataset.originalHtml = button.innerHTML; if (!button.dataset.originalTitle) button.dataset.originalTitle = button.title; if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout); button.feedbackTimeout = null; button.classList.remove('success', 'error', 'working', 'cancelling', 'active-hole-remover', 'active-color-picker'); if (status) button.classList.add(status); if (isHoleRemoverButton && waitingForInnerHoleClick) button.classList.add('active-hole-remover'); if (isColorPickerButton && isColorPickingActive) button.classList.add('active-color-picker'); let finalMessage = message; let finalTitle = button.dataset.originalTitle || button.title; if (isHoleRemoverButton && waitingForInnerHoleClick) { finalMessage = '<i class="fas fa-hand-pointer mr-1"></i> Clic Hueco'; finalTitle = "Haz clic en un área interna..."; } else if (isColorPickerButton && isColorPickingActive) { finalMessage = '<i class="fas fa-eye-dropper"></i> Seleccionar'; finalTitle = "Haz clic para seleccionar color (P)"; } else if (!message && (status === 'success' || status === 'error')) { finalMessage = button.dataset.originalHtml || button.innerHTML; } if (finalMessage && button.innerHTML !== finalMessage) { if (finalMessage.startsWith('<i class="')) button.innerHTML = finalMessage; else button.textContent = finalMessage; } button.title = finalTitle; button.disabled = isWorkingOrCancelling; if (!isWorkingOrCancelling) { updateActionButtonsState(); } const shouldRevert = (status === 'success' || status === 'error'); if (shouldRevert) { button.feedbackTimeout = setTimeout(() => { button.classList.remove(status); if (!(isHoleRemoverButton && waitingForInnerHoleClick) && !(isColorPickerButton && isColorPickingActive)) { if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml; if (button.dataset.originalTitle) button.title = button.dataset.originalTitle; } updateActionButtonsState(); }, duration); } }
+        function updatePreviewBackground() {
+             if (!canvasOuterContainer || !previewBgIcon || !previewBgToggleBtn || !previewBgBlackBtn || !previewBgColorInput) return;
+             if (previewMode === 'solid') {
+                 canvasOuterContainer.classList.remove('checkerboard-bg');
+                 canvasOuterContainer.classList.add('solid-bg');
+                 canvasOuterContainer.style.backgroundColor = previewBackgroundColor;
+             } else { // checkerboard
+                 canvasOuterContainer.classList.add('checkerboard-bg');
+                 canvasOuterContainer.classList.remove('solid-bg');
+                 canvasOuterContainer.style.backgroundColor = '';
+             }
+             updatePreviewBackgroundVisualState(); // Actualiza la clase 'active-bg-option'
+         }
+        function checkClipboardSupport() { if (!isClipboardReadSupported) { if (pasteSupportWarning) pasteSupportWarning.classList.remove('hidden'); if (pasteBtn) { pasteBtn.disabled = true; pasteBtn.title = "Pegar no soportado."; } console.warn("Clipboard read no soportado."); } else { if (pasteSupportWarning) pasteSupportWarning.classList.add('hidden'); } if (!isClipboardWriteSupported) { if (clipboardSupportWarning) clipboardSupportWarning.classList.remove('hidden'); if (copyBtn) { copyBtn.disabled = true; copyBtn.title = "Copiar no soportado."; } console.warn("Clipboard write no soportado."); } else { if (clipboardSupportWarning) clipboardSupportWarning.classList.add('hidden'); } updateActionButtonsState(); }
+        function saveStateToHistory() { if (!maskCtx || !maskCanvas) return; try { if (redoHistory.length > 0) { console.log("Nueva acción, limpiando historial Redo."); redoHistory = []; } const currentState = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height); history.push(currentState); if (history.length > MAX_HISTORY + 1) { history.shift(); } console.log("Historial:", history.length - 1, "Redo:", redoHistory.length); updateActionButtonsState(); } catch (e) { console.error("Error guardando estado en el historial:", e); } }
+        function undo() { if (isComparePopupOpen || history.length <= 1 || !isGenerallyIdle()) return; console.log("Deshaciendo..."); try { const currentState = history.pop(); redoHistory.push(currentState); const previousState = history[history.length - 1]; if (previousState) { maskCtx.putImageData(previousState, 0, 0); requestRender(); } console.log("Historial:", history.length - 1, "Redo:", redoHistory.length); } catch (e) { console.error("Error al deshacer:", e); } finally { updateActionButtonsState(); } }
+        function redo() { if (isComparePopupOpen || redoHistory.length === 0 || !isGenerallyIdle()) return; console.log("Rehaciendo..."); try { const nextState = redoHistory.pop(); history.push(nextState); if (history.length > MAX_HISTORY + 1) { history.shift(); } maskCtx.putImageData(nextState, 0, 0); requestRender(); console.log("Historial:", history.length - 1, "Redo:", redoHistory.length); } catch (e) { console.error("Error al rehacer:", e); } finally { updateActionButtonsState(); } }
+        function showProcessingOverlay(m) { if (processingStatusText) processingStatusText.textContent = m || "Procesando..."; if (processingOverlay) processingOverlay.classList.remove('hidden'); }
+        function hideProcessingOverlay() { if (processingOverlay) processingOverlay.classList.add('hidden'); }
+        function drawCheckerboard(tCtx, w, h, s = 10) { tCtx.save(); tCtx.fillStyle = '#fff'; tCtx.fillRect(0, 0, w, h); tCtx.fillStyle = '#ccc'; for (let i = 0; i < w; i += s) { for (let j = 0; j < h; j += s) { if ((Math.floor(i / s) + Math.floor(j / s)) % 2 === 0) tCtx.fillRect(i, j, s, s); } } tCtx.restore(); }
+        function colorDistance(r1, g1, b1, r2, g2, b2) { const dr = r1 - r2, dg = g1 - g2, db = b1 - b2; return dr * dr + dg * dg + db * db; }
+
+        // --- Image Generation & Export/Copy/Paste ---
+        async function createFinalImageBlob(f = 'image/png') { if (!originalImage || !maskCanvas) return null; console.log("Creando Blob final..."); const fc = document.createElement('canvas'); fc.width = originalImage.naturalWidth; fc.height = originalImage.naturalHeight; const fctx = fc.getContext('2d'); if (!fctx) { console.error("No ctx final."); return null; } fctx.clearRect(0, 0, fc.width, fc.height); fctx.drawImage(originalImage, 0, 0); fctx.globalCompositeOperation = 'destination-in'; fctx.drawImage(maskCanvas, 0, 0); fctx.globalCompositeOperation = 'source-over'; return new Promise(r => fc.toBlob(r, f)); }
+        async function exportImage() { if (isComparePopupOpen || !originalImage || !exportBtn || exportBtn.disabled) return; showButtonFeedback(exportBtn, 'working', 'Exportando...'); try { const b = await createFinalImageBlob(); if (!b) throw new Error("Fallo Blob."); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `${imageFilename}_sin_fondo.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u); showButtonFeedback(exportBtn, 'success', '<i class="fas fa-check"></i> Exportado'); } catch (e) { console.error("Error exportando:", e); alert(`Error exportar: ${e.message}`); showButtonFeedback(exportBtn, 'error', '<i class="fas fa-times"></i> Error'); } }
+        async function copyImageToClipboard() { if (isComparePopupOpen || !originalImage || !isClipboardWriteSupported || !copyBtn || copyBtn.disabled) return; showButtonFeedback(copyBtn, 'working', 'Copiando...'); try { const b = await createFinalImageBlob('image/png'); if (!b) throw new Error("Fallo Blob."); const i = new ClipboardItem({ 'image/png': b }); await navigator.clipboard.write([i]); showButtonFeedback(copyBtn, 'success', '<i class="fas fa-check"></i> Copiado'); } catch (e) { console.error("Error copiando:", e); let m = "Error desconocido."; if (e.name === 'NotAllowedError') m = "Permiso denegado."; else if (e.message?.toLowerCase().includes("large")) m = "Imagen grande."; else if (e.name === 'SecurityError') m = "Error seguridad."; alert(`No se pudo copiar: ${m}\nDetalles: ${e.message}`); showButtonFeedback(copyBtn, 'error', '<i class="fas fa-times"></i> Error'); } }
+        async function handlePasteButtonClick() { if (isComparePopupOpen || !isClipboardReadSupported || !pasteBtn || pasteBtn.disabled) return; console.log("Intentando pegar (botón)..."); showButtonFeedback(pasteBtn, 'working', 'Pegando...'); try { const p = await navigator.permissions.query({ name: 'clipboard-read' }); if (p.state === 'denied') throw new Error("Permiso denegado."); const ci = await navigator.clipboard.read(); let found = false; for (const item of ci) { const it = item.types.find(t => t.startsWith("image/")); if (it) { const b = await item.getType(it); cancelCurrentAction(true); handleFile(new File([b], "img_pegada.png", { type: it })); found = true; break; } } if (found) showButtonFeedback(pasteBtn, 'success', '<i class="fas fa-check"></i> Pegado'); else showButtonFeedback(pasteBtn, 'error', 'No imagen', 1000); } catch (e) { console.error("Error pegando:", e); let m = "Error."; if (e.name === 'NotAllowedError' || e.message?.includes("denied")) m = "Permiso denegado."; else if (e.name === 'SecurityError') m = "Error seguridad."; else if (e.message?.includes("No valid data")) m = "No imagen."; else if (e.message?.includes("activation")) m = "Requiere interacción."; alert(`No se pudo pegar: ${m}\nDetalles: ${e.message}`); showButtonFeedback(pasteBtn, 'error', '<i class="fas fa-times"></i> Error'); } }
+        function handleClipboardPaste(cd) { if (isComparePopupOpen || !cd?.items) return false; console.log("Evento paste..."); let found = false; for (const i of cd.items) { if (i.kind === 'file' && i.type.startsWith('image/')) { const f = i.getAsFile(); if (f) { cancelCurrentAction(true); handleFile(f); found = true; break; } } } if (!found) console.log("No imagen 'file' en paste."); return found; }
+
+        // --- Compare Popup Functions ---
+        async function openComparePopup() { if (!originalImage || !comparePopupOverlay || !compareBeforeImg || !compareAfterImg || isComparePopupOpen) { console.warn("No abrir comparación."); return; } const slider = comparePopupOverlay.querySelector("img-comparison-slider"); if (!slider) { console.error("Slider no encontrado."); alert("Error comparación."); return; } console.log("Abriendo popup comparación..."); cancelCurrentAction(true); isComparePopupOpen = true; updateActionButtonsState(); updateStatusBar(); document.body.style.overflow = 'hidden'; canvasOuterContainer.style.cursor = 'default'; compareBeforeImg.alt = `Antes (Cargando...)`; compareAfterImg.alt = 'Después (Cargando...)'; compareBeforeImg.src = ''; compareAfterImg.src = ''; showButtonFeedback(compareBtn, 'working', 'Generando...', 60000); try { compareBeforeImg.src = originalImage.src; compareBeforeImg.alt = `Antes (${originalImage.naturalWidth}×${originalImage.naturalHeight})`; const blob = await createFinalImageBlob('image/png'); if (!blob) throw new Error("Fallo blob 'Después'"); const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = e => rej(e); r.readAsDataURL(blob); }); compareAfterImg.src = dataUrl; compareAfterImg.alt = `Después (${originalImage.naturalWidth}×${originalImage.naturalHeight})`; console.log("   Imagen 'Después' cargada."); slider.value = 50; comparePopupOverlay.classList.remove('hidden'); showButtonFeedback(compareBtn, null); } catch (err) { console.error("Error generando imágenes popup:", err); alert(`Error generar comparación: ${err.message}`); showButtonFeedback(compareBtn, 'error', 'Error', 2000); closeComparePopup(true); } }
+        function closeComparePopup(forceClose = false) { if (!isComparePopupOpen && !forceClose) return; console.log("Cerrando popup comparación..."); isComparePopupOpen = false; if (comparePopupOverlay) comparePopupOverlay.classList.add('hidden'); document.body.style.overflow = ''; if (compareBeforeImg) compareBeforeImg.src = ''; if (compareAfterImg) compareAfterImg.src = ''; updateActionButtonsState(); updateStatusBar(); canvasOuterContainer.style.cursor = getToolCursor(); if (!forceClose && compareBtn) { compareBtn.classList.remove('success', 'error', 'working', 'cancelling'); if (compareBtn.dataset.originalHtml) compareBtn.innerHTML = compareBtn.dataset.originalHtml; if (compareBtn.dataset.originalTitle) compareBtn.title = compareBtn.dataset.originalTitle; updateActionButtonsState(); } }
+
+        // --- Flood Fill Logic (Auto Background & Holes) ---
+        async function handleRemoveBackgroundByFloodFill() { if (isComparePopupOpen) return; console.log(`%c>>> FloodFill Bordes`, 'color:blue;font-weight:bold'); if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || !isGenerallyIdle()) { console.warn("FloodFill abortado: Estado inválido"); if (!isFloodFilling) showButtonFeedback(removeEdgeBgBtn, 'error', 'Ocupado', 1000); return; } isFloodFilling = true; cancelFloodFillRequest = false; updateActionButtonsState(); showButtonFeedback(removeEdgeBgBtn, 'working', 'Analizando...'); showProcessingOverlay('Analizando bordes...'); await new Promise(r => setTimeout(r, 50)); try { if (cancelFloodFillRequest) throw new Error("CancelledBeforeStart"); processingStatusText.textContent = "Procesando fondo..."; const t = parseInt(edgeColorToleranceSlider.value, 10), tsq = t * t * 3; const oD = originalImageDataCache, miD = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height), w = miD.width, h = miD.height, v = Array(h).fill(null).map(() => Array(w).fill(false)); console.log(` FloodFill Bordes. Tol:${t}, DistSq:${tsq.toFixed(0)}`); const st = performance.now(); let canc = false; for (let x = 0; x < w; x++) { if (cancelFloodFillRequest) { canc = true; break; } if (await floodFillMaskAsync(oD, miD, x, 0, tsq, v)) { canc = true; break; } if (await floodFillMaskAsync(oD, miD, x, h - 1, tsq, v)) { canc = true; break; } } if (!canc) { for (let y = 1; y < h - 1; y++) { if (cancelFloodFillRequest) { canc = true; break; } if (await floodFillMaskAsync(oD, miD, 0, y, tsq, v)) { canc = true; break; } if (await floodFillMaskAsync(oD, miD, w - 1, y, tsq, v)) { canc = true; break; } } } const et = performance.now(); console.log(` FloodFill terminado ${((et - st) / 1000).toFixed(2)}s. Cancelado:${canc || cancelFloodFillRequest}`); if (cancelFloodFillRequest || canc) throw new Error("Cancelled"); maskCtx.putImageData(miD, 0, 0); saveStateToHistory(); renderCanvas(); console.log("<<< FloodFill Completado."); showButtonFeedback(removeEdgeBgBtn, 'success', '<i class="fas fa-check"></i> Hecho'); } catch (e) { if (e.message === "Cancelled" || e.message === "CancelledBeforeStart") { console.log("%cFloodFill CANCELADO.", 'color:orange;'); showButtonFeedback(removeEdgeBgBtn, 'error', 'Cancelado', 1500); } else { console.error("Error FloodFill:", e); alert(`Error proceso:${e.message}`); showButtonFeedback(removeEdgeBgBtn, 'error', 'Error', 1500); } } finally { console.log(" Finally FloodFill: Limpiando."); isFloodFilling = false; cancelFloodFillRequest = false; hideProcessingOverlay(); if (removeEdgeBgBtn && !removeEdgeBgBtn.classList.contains('success') && !removeEdgeBgBtn.classList.contains('error')) { if (removeEdgeBgBtn.dataset.originalHtml) removeEdgeBgBtn.innerHTML = removeEdgeBgBtn.dataset.originalHtml; if (removeEdgeBgBtn.dataset.originalTitle) removeEdgeBgBtn.title = removeEdgeBgBtn.dataset.originalTitle; } updateActionButtonsState(); } }
+        async function floodFillMaskAsync(oD, mD, sx, sy, tsq, v) { const w = oD.width, h = oD.height, oP = oD.data, mP = mD.data, cInt = 5000; if (sx < 0 || sx >= w || sy < 0 || sy >= h || v[sy][sx]) return false; const sIdx = (sy * w + sx) * 4; if (mP[sIdx + 3] < 128 || oP[sIdx + 3] < 128) { v[sy][sx] = true; return false; } const sR = oP[sIdx], sG = oP[sIdx + 1], sB = oP[sIdx + 2]; const q = [[sx, sy]]; v[sy][sx] = true; mP[sIdx + 3] = 0; let pp = 0; while (q.length > 0) { pp++; if (pp % cInt === 0) { if (cancelFloodFillRequest) return true; await new Promise(r => setTimeout(r, 0)); if (cancelFloodFillRequest) return true; } const [x, y] = q.shift(); const n = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]]; for (const [nx, ny] of n) { if (nx >= 0 && nx < w && ny >= 0 && ny < h && !v[ny][nx]) { v[ny][nx] = true; const nIdx = (ny * w + nx) * 4; if (mP[nIdx + 3] >= 128 && oP[nIdx + 3] >= 128) { const nR = oP[nIdx], nG = oP[nIdx + 1], nB = oP[nIdx + 2]; if (colorDistance(sR, sG, sB, nR, nG, nB) <= tsq) { q.push([nx, ny]); mP[nIdx + 3] = 0; } } } } } return false; }
+        function activateInnerHoleClickMode() { if (!originalImage || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand || waitingForInnerHoleClick || isDrawing || isDrawingLine || isDrawingContinuousLine || isColorPickingActive) { console.warn("No se puede activar 'Eliminar Hueco'."); if (!isGenerallyIdle() && !waitingForInnerHoleClick) { showButtonFeedback(removeInnerHoleBtn, 'error', 'Ocupado', 1000); } return; } console.log("Activando modo 'Eliminar Hueco Interno'"); waitingForInnerHoleClick = true; showButtonFeedback(removeInnerHoleBtn, 'active-hole-remover'); updateStatusBar(); updateActionButtonsState(); clearPreviewCanvas(); canvasOuterContainer.style.cursor = 'crosshair'; }
+        function removeInnerHoleAt(startX, startY) { console.log(`%c>>> removeInnerHoleAt (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: purple; font-weight: bold;'); if (!waitingForInnerHoleClick || !originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand) { console.warn("Eliminar Hueco abortado."); if (waitingForInnerHoleClick) { showButtonFeedback(removeInnerHoleBtn, 'error', 'Error Estado', 1500); cancelCurrentAction(true); } return; } const width = maskCanvas.width; const height = maskCanvas.height; startX = Math.floor(startX); startY = Math.floor(startY); if (startX < 0 || startX >= width || startY < 0 || startY >= height) { console.log("Clic fuera de límites."); showButtonFeedback(removeInnerHoleBtn, 'error', 'Fuera Imagen', 1000); cancelCurrentAction(true); return; } let pixelsChanged = 0; let success = false; let message = ''; let statusClass = 'error'; try { const maskImageData = maskCtx.getImageData(0, 0, width, height); const maskPixels = maskImageData.data; const originalPixels = originalImageDataCache.data; const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3; const startIndex = (startY * width + startX) * 4; if (maskPixels[startIndex + 3] < 128) { message = 'Ya Transparente'; statusClass = 'error'; success = false; } else { const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2]; const visited = new Uint8Array(width * height); const queue = [[startX, startY]]; visited[startY * width + startX] = 1; maskPixels[startIndex + 3] = 0; pixelsChanged = 1; let head = 0; const maxQueueSize = width * height * 1.5; while (head < queue.length && queue.length < maxQueueSize) { const [x, y] = queue[head++]; const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]]; for (const [nx, ny] of neighbors) { if (nx >= 0 && nx < width && ny >= 0 && ny < height) { const nIndexLinear = ny * width + nx; if (visited[nIndexLinear] === 0) { visited[nIndexLinear] = 1; const nIndexRGBA = nIndexLinear * 4; if (maskPixels[nIndexRGBA + 3] >= 128) { const nR_orig = originalPixels[nIndexRGBA]; const nG_orig = originalPixels[nIndexRGBA + 1]; const nB_orig = originalPixels[nIndexRGBA + 2]; if (colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig) <= toleranceSq) { queue.push([nx, ny]); maskPixels[nIndexRGBA + 3] = 0; pixelsChanged++; } } } } } } if (queue.length >= maxQueueSize) { console.warn(`Flood fill (hueco) alcanzó límite desde (${startX}, ${startY}).`); message = 'Área Muy Grande'; statusClass = 'error'; success = false; pixelsChanged = 0; } else if (pixelsChanged > 0) { maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender(); message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true; console.log(`   Hueco eliminado, ${pixelsChanged} píxeles afectados.`); } else { message = 'No Cambios'; statusClass = 'error'; success = false; } } } catch (error) { console.error("Error eliminando hueco:", error); alert(`Error procesando hueco: ${error.message}`); message = '<i class="fas fa-times"></i> Error Interno'; statusClass = 'error'; success = false; } finally { waitingForInnerHoleClick = false; showButtonFeedback(removeInnerHoleBtn, statusClass, message, success ? 1200 : 2000); updateStatusBar(); updateActionButtonsState(); canvasOuterContainer.style.cursor = getToolCursor(); } }
+
+        // --- Color Picker & Removal Logic ---
+        function pickColorAt(ix, iy) { if (!originalImageDataCache || !originalImage) { console.warn("Pick color sin datos."); return; } const x = Math.floor(ix), y = Math.floor(iy), w = originalImage.naturalWidth, h = originalImage.naturalHeight; if (x < 0 || x >= w || y < 0 || y >= h) { console.log("Clic fuera para color."); showButtonFeedback(colorPickerBtn, 'error', 'Fuera', 800); return; } const idx = (y * w + x) * 4, r = originalImageDataCache.data[idx], g = originalImageDataCache.data[idx + 1], b = originalImageDataCache.data[idx + 2]; const exists = selectedBackgroundColors.some(c => c.r === r && c.g === g && c.b === b); if (!exists) { selectedBackgroundColors.push({ r, g, b }); console.log(`Color añadido: rgb(${r},${g},${b}). Total: ${selectedBackgroundColors.length}`); updateSelectedColorsUI(); updateActionButtonsState(); showButtonFeedback(colorPickerBtn, 'success', `<i class="fas fa-plus mr-1"></i>${r},${g},${b}`, 800); } else { console.log(`Color rgb(${r},${g},${b}) ya existe.`); showButtonFeedback(colorPickerBtn, 'error', 'Ya existe', 800); } }
+        function removeSelectedColor(r, g, b) { selectedBackgroundColors = selectedBackgroundColors.filter(c => !(c.r === r && c.g === g && c.b === b)); console.log(`Color quitado: rgb(${r},${g},${b}). Restantes: ${selectedBackgroundColors.length}`); updateSelectedColorsUI(); updateActionButtonsState(); }
+        function updateSelectedColorsUI() { if (!selectedColorsListDiv || !noColorsSelectedP || !selectedColorsSection) return; selectedColorsListDiv.innerHTML = ''; if (selectedBackgroundColors.length === 0) { if (noColorsSelectedP) { noColorsSelectedP.style.display = 'block'; } } else { if (noColorsSelectedP) noColorsSelectedP.style.display = 'none'; selectedBackgroundColors.forEach(c => { const tag = document.createElement('span'); tag.className = 'color-tag'; const dot = document.createElement('span'); dot.className = 'color-dot'; dot.style.backgroundColor = `rgb(${c.r},${c.g},${c.b})`; const txt = document.createElement('span'); txt.textContent = `${c.r},${c.g},${c.b}`; const btn = document.createElement('button'); btn.className = 'remove-color-btn'; btn.innerHTML = '×'; btn.title = 'Eliminar este color'; btn.type = 'button'; btn.dataset.r = c.r; btn.dataset.g = c.g; btn.dataset.b = c.b; tag.appendChild(dot); tag.appendChild(txt); tag.appendChild(btn); selectedColorsListDiv.appendChild(tag); }); } selectedColorsSection.style.display = (isColorPickingActive && originalImage) ? 'block' : 'none'; }
+        function applyFeatherToMask(miD, w, h, f) { const r = Math.max(1, Math.round(f * 15)); if (r <= 0) return miD; console.log(` Aplicando suavizado (radio ~${r}px)`); const d = miD.data; const tempAlpha = new Uint8ClampedArray(w * h); const blurredAlpha = new Uint8ClampedArray(w * h); for (let i = 0; i < w * h; i++) { tempAlpha[i] = d[i * 4 + 3]; } for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) { let totalAlpha = 0; let count = 0; for (let ky = -r; ky <= r; ky++) { const ny = y + ky; if (ny < 0 || ny >= h) continue; for (let kx = -r; kx <= r; kx++) { const nx = x + kx; if (nx < 0 || nx >= w) continue; totalAlpha += tempAlpha[ny * w + nx]; count++; } } blurredAlpha[y * w + x] = count > 0 ? totalAlpha / count : tempAlpha[y * w + x]; } } for (let i = 0; i < w * h; i++) { d[i * 4 + 3] = blurredAlpha[i]; } console.log("   Suavizado aplicado."); return miD; }
+        async function applyColorRemoval() { if (isComparePopupOpen) return; console.log("%c>>> Aplicando Eliminación por Color...", 'color:purple;font-weight:bold'); if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || selectedBackgroundColors.length === 0 || !isGenerallyIdle()) { console.warn("Eliminación por Color abortada."); showButtonFeedback(applyColorRemovalBtn, 'error', 'Error Estado', 1000); return; } isProcessingColorRemoval = true; updateActionButtonsState(); showButtonFeedback(applyColorRemovalBtn, 'working', 'Procesando...'); showProcessingOverlay('Eliminando colores...'); await new Promise(r => setTimeout(r, 50)); try { const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3; const featherAmount = parseFloat(brushFeatherSlider.value); const width = maskCanvas.width, height = maskCanvas.height; const originalPixels = originalImageDataCache.data; const maskImageData = maskCtx.getImageData(0, 0, width, height); const maskPixels = maskImageData.data; console.log(` Procesando ${width}x${height}. Colores: ${selectedBackgroundColors.length}, Tolerancia: ${tolerance}, Suavizado: ${featherAmount}`); const startTime = performance.now(); for (let y = 0; y < height; y++) { for (let x = 0; x < width; x++) { const idx = (y * width + x) * 4; if (originalPixels[idx + 3] < 128 || maskPixels[idx + 3] < 128) { continue; } const rO = originalPixels[idx]; const gO = originalPixels[idx + 1]; const bO = originalPixels[idx + 2]; let match = false; for (const bgColor of selectedBackgroundColors) { if (colorDistance(rO, gO, bO, bgColor.r, bgColor.g, bgColor.b) <= toleranceSq) { match = true; break; } } if (match) { maskPixels[idx + 3] = 0; } } } let finalMaskData = maskImageData; if (featherAmount > 0) { finalMaskData = applyFeatherToMask(maskImageData, width, height, featherAmount); } maskCtx.putImageData(finalMaskData, 0, 0); const endTime = performance.now(); console.log(` Eliminación por Color completada en ${((endTime - startTime) / 1000).toFixed(2)}s.`); saveStateToHistory(); requestRender(); showButtonFeedback(applyColorRemovalBtn, 'success', '<i class="fas fa-check"></i> Colores Aplicados'); } catch (e) { console.error("Error durante eliminación por color:", e); alert(`Error al aplicar colores: ${e.message}`); showButtonFeedback(applyColorRemovalBtn, 'error', 'Error Proceso', 1500); } finally { console.log(" Finally Eliminación Color: Limpiando estado."); isProcessingColorRemoval = false; hideProcessingOverlay(); if (applyColorRemovalBtn && !applyColorRemovalBtn.classList.contains('success')) { if (applyColorRemovalBtn.dataset.originalHtml) applyColorRemovalBtn.innerHTML = applyColorRemovalBtn.dataset.originalHtml; if (applyColorRemovalBtn.dataset.originalTitle) applyColorRemovalBtn.title = applyColorRemovalBtn.dataset.originalTitle; } updateActionButtonsState(); } }
+
+         // --- ***** NUEVO: Lógica Varita Mágica ***** ---
+         async function applyMagicWand(startX, startY) {
+             console.log(`%c>>> Varita Mágica en (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: magenta; font-weight: bold;');
+             // Verificar si está ocupado con otras operaciones de procesamiento intensivo
+             if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || isFloodFilling || isProcessingColorRemoval || isProcessingMagicWand || isDrawing || isDrawingLine || isDrawingContinuousLine || waitingForInnerHoleClick || isComparePopupOpen) {
+                 console.warn("Varita Mágica abortada: Estado inválido o proceso activo.");
+                 showButtonFeedback(magicWandBtn, 'error', 'Ocupado', 1000);
+                 return;
+             }
+             const width = maskCanvas.width; const height = maskCanvas.height;
+             startX = Math.floor(startX); startY = Math.floor(startY);
+             if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
+                 console.log("Clic fuera de límites.");
+                 showButtonFeedback(magicWandBtn, 'error', 'Fuera Imagen', 1000);
+                 return;
+             }
+
+             isProcessingMagicWand = true; // Marcar como ocupado
+             updateActionButtonsState(); // Deshabilitar botones
+             showProcessingOverlay("Analizando con Varita Mágica...");
+             await new Promise(resolve => setTimeout(resolve, 20)); // Pequeña pausa para UI
+
+             let pixelsChanged = 0; let success = false; let message = 'Error Desconocido'; let statusClass = 'error';
+             try {
+                 const maskImageData = maskCtx.getImageData(0, 0, width, height);
+                 const maskPixels = maskImageData.data; const originalPixels = originalImageDataCache.data;
+                 const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3;
+                 const startIndex = (startY * width + startX) * 4;
+
+                 // Obtener color inicial y verificar si es transparente en la imagen original
+                 const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2]; const startA = originalPixels[startIndex + 3];
+                 if(startA < 128) { // Si el pixel original es transparente, no hacer nada
+                      message = 'Clic en Transparente'; statusClass = 'error'; success = false;
+                      console.log("   Varita: Clic en área transparente original.");
+                      throw new Error("Clic en área transparente original"); // Salir temprano
+                 }
+
+                 const visited = new Uint8Array(width * height); const queue = [[startX, startY]]; const matchedPixelsCoords = [];
+                 visited[startY * width + startX] = 1;
+
+                 // Solo añadir a la lista si el píxel de la MÁSCARA es actualmente visible
+                 if (maskPixels[startIndex + 3] >= 128) matchedPixelsCoords.push([startX, startY]);
+
+                 let head = 0; const maxQueueSize = width * height * 1.5; // Límite de seguridad
+
+                 // Algoritmo Flood Fill (similar a Hueco/Auto)
+                 while (head < queue.length && queue.length < maxQueueSize) {
+                     const [x, y] = queue[head++];
+                     const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]];
+                     for (const [nx, ny] of neighbors) {
+                         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                             const nIndexLinear = ny * width + nx;
+                             if (visited[nIndexLinear] === 0) {
+                                 visited[nIndexLinear] = 1; const nIndexRGBA = nIndexLinear * 4;
+
+                                 // Comprobar pixel original, no la máscara, para la expansión
+                                 const nR_orig = originalPixels[nIndexRGBA]; const nG_orig = originalPixels[nIndexRGBA + 1]; const nB_orig = originalPixels[nIndexRGBA + 2]; const nA_orig = originalPixels[nIndexRGBA + 3];
+
+                                 // Expandir solo si el pixel original es visible y similar en color
+                                 if (nA_orig >= 128 && colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig) <= toleranceSq) {
+                                     queue.push([nx, ny]);
+                                     // Añadir a la lista para borrar *solo* si el pixel de la MÁSCARA es visible
+                                     if (maskPixels[nIndexRGBA + 3] >= 128) {
+                                         matchedPixelsCoords.push([nx, ny]);
+                                     }
+                                 }
+                             }
+                         }
+                     }
+                 } // Fin while
+
+                 if (queue.length >= maxQueueSize) { console.warn(`Varita Mágica alcanzó límite de cola desde (${startX}, ${startY}).`); message = 'Área Muy Grande'; statusClass = 'error'; success = false;
+                 } else if (matchedPixelsCoords.length > 0) {
+                     console.log(`   Varita encontró ${matchedPixelsCoords.length} píxeles opacos coincidentes en la máscara.`);
+                     // Aplicar el borrado a la máscara
+                     for (const [mx, my] of matchedPixelsCoords) {
+                         const mIndex = (my * width + mx) * 4;
+                         // Doble check por si acaso (aunque ya se hizo al añadir)
+                         if (maskPixels[mIndex + 3] >= 128) {
+                             maskPixels[mIndex + 3] = 0; // Hacer transparente en la MÁSCARA
+                             pixelsChanged++;
+                         }
+                     }
+
+                     if (pixelsChanged > 0) {
+                         maskCtx.putImageData(maskImageData, 0, 0);
+                         saveStateToHistory();
+                         requestRender();
+                         message = `<i class="fas fa-check"></i> Área Eliminada (${pixelsChanged}px)`; statusClass = 'success'; success = true;
+                     } else {
+                         // Se encontraron píxeles en el flood fill, pero ninguno estaba visible en la máscara actual
+                         message = 'No Cambios Visibles'; statusClass = 'error'; success = false;
+                         console.log("   Varita: Flood fill encontró píxeles, pero ya eran transparentes en la máscara.");
+                     }
+                 } else { // No se añadieron coordenadas (o el pixel inicial ya era transparente en la máscara)
+                     message = 'Nada que borrar'; statusClass = 'error'; success = false;
+                     console.log("   Varita no encontró píxeles opacos coincidentes en la máscara para borrar.");
+                 }
+             } catch (error) {
+                 if(error.message !== "Clic en área transparente original") { // Evitar alerta si solo fue clic en transparente
+                     console.error("Error crítico durante la operación Varita Mágica:", error);
+                     alert(`Error con la Varita Mágica: ${error.message}\nConsulta la consola.`);
+                     message = '<i class="fas fa-times"></i> Error Interno'; statusClass = 'error'; success = false;
+                 }
+             } finally {
+                 hideProcessingOverlay();
+                 showButtonFeedback(magicWandBtn, statusClass, message, success ? 1500 : 2500);
+                 isProcessingMagicWand = false; // Marcar como libre
+                 updateActionButtonsState(); // Rehabilitar botones
+             }
+         }
+         // --- ***** FIN Lógica Varita Mágica ***** ---
+
+
+        // --- Final cierre del listener DOMContentLoaded ---
+    }); // End DOMContentLoaded Listener
+</script>
+Use code with caution.
+</body>
+</html>
