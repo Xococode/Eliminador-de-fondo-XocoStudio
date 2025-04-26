@@ -1,1 +1,1045 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminador de Fondos (Completo + Comparador) - XocoStudio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- === Dependencias img-comparison-slider === -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/style.css" />
+    <!-- === FIN Dependencias === -->
 
+<style>
+    /* --- Estilos CSS (Optimizados + Añadidos) --- */
+    body { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
+    /* Fondos */
+    .checkerboard-bg { background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: #e5e5e5;}
+    .solid-white-bg { background: white !important; background-image: none !important; }
+    .solid-black-bg { background: black !important; background-image: none !important; }
+    /* Botones Activos */
+    .tool-btn.active-tool { background-color: #d1d5db; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); }
+    .tool-btn.active-hole-remover { background-color: #fde047 !important; color: #713f12 !important; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1); border-color: #ca8a04; }
+    .brush-shape.active-shape { border-color: #3b82f6; border-width: 2px; }
+    .bg-btn.active-bg { background-color: #9ca3af; color: white; border-color: #6b7280; }
+    /* Canvas y Contenedores */
+    #canvas-outer-container { width: 100%; height: 100%; overflow: hidden; position: relative; cursor: default; transition: background-color 0.3s ease; }
+    #canvas-inner-container { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+    #image-canvas, #preview-canvas { display: block; position: absolute; top: 0; left: 0; max-width: none; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+    #preview-canvas { pointer-events: none; z-index: 1;} #image-canvas { z-index: 0; }
+    main { height: calc(100vh - 64px - 32px); }
+    /* Iconos Compuestos */
+    .fa-line-eraser::before { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; } .fa-line-eraser::after { content: ""; position: absolute; left: 15%; top: 50%; width: 70%; height: 2px; background-color: currentColor; transform: translateY(-50%) rotate(0deg); opacity: 0.6; z-index: 0; } .tool-btn .fa-line-eraser { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } #eraser-line-tool i { font-size: 0.9em; } .fa-continuous-eraser-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } .fa-continuous-eraser-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; } .fa-continuous-eraser-line::after { content: "\f12d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #ef4444; } #continuous-eraser-line-tool i { font-size: 1em; } .fa-continuous-keep-line { position: relative; display: inline-block; width: 1.1em; height: 1em; vertical-align: middle; } .fa-continuous-keep-line::before { content: "\f55b"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 45%; top: 45%; transform: translate(-50%, -50%) scale(0.8); z-index: 1; } .fa-continuous-keep-line::after { content: "\f55d"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 70%; top: 70%; transform: translate(-50%, -50%) scale(0.5); z-index: 2; color: #22c55e; } #continuous-keep-line-tool i { font-size: 1em; }
+    /* Feedback Botones */
+    .btn-feedback { transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out; } .btn-feedback.success { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; } .btn-feedback.error { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; } .btn-feedback.working { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; cursor: wait; } .btn-feedback.cancelling { background-color: #f97316 !important; color: white !important; border-color: #ea580c !important; cursor: default; }
+    /* Overlay Procesamiento */
+    .processing-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; pointer-events: none; } .processing-overlay i { margin-bottom: 10px; } .processing-overlay p { margin-top: 0px; font-size: 1.1rem; }
+
+    /* === Estilos Popup Comparación === */
+    #compare-popup-overlay { backdrop-filter: blur(3px); }
+    #compare-popup-content img-comparison-slider {
+         max-width: 100%; max-height: 100%; min-height: 200px;
+         outline: none; border-radius: 0.25rem;
+         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+    img-comparison-slider::part(handle) { color: #3b82f6; }
+    img-comparison-slider::part(divider) { background-color: #3b82f6; }
+    .compare-handle-icon { width: 100%; height: 100%; }
+    /* === FIN Estilos Popup === */
+</style>
+Use code with caution.
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen overflow-hidden">
+<header class="bg-white shadow-md p-4 flex-shrink-0 flex items-center">
+    <a href="https://xocostudio.com/" target="_blank" rel="noopener noreferrer" class="mr-4 flex-shrink-0"><img src="https://xocostudio.com/assets/images/xocostudio-354x128.png" alt="XocoStudio Logo" class="h-8"></a>
+    <h1 class="text-xl md:text-2xl font-bold text-gray-800">Eliminador de Fondos</h1>
+</header>
+
+<main class="flex-grow flex flex-col md:flex-row p-4 gap-4">
+    <!-- Panel de Controles -->
+    <aside class="w-full md:w-72 bg-white p-4 rounded-lg shadow space-y-6 flex-shrink-0 overflow-y-auto">
+        <!-- Carga -->
+        <div id="upload-section"> <h2 class="text-lg font-semibold mb-2">1. Cargar Imagen</h2> <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"> <p>Arrastra y suelta</p><p class="text-sm text-gray-500 my-2">o</p> <div class="flex flex-col items-center space-y-2"> <input type="file" id="file-input" accept="image/*" class="hidden"> <button id="upload-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded btn-feedback"><i class="fas fa-upload mr-1"></i> Seleccionar</button> <button id="paste-btn" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Pegar (Ctrl+V)"><i class="fas fa-paste mr-1"></i> Pegar</button> </div> <p id="paste-support-warning" class="text-xs text-red-600 mt-2 hidden">Pegar no soportado.</p> </div> <p id="filename-display" class="text-xs text-gray-600 mt-2 truncate"></p> </div>
+        <!-- Herramientas -->
+        <div id="tools-section" class="space-y-4 hidden pt-4 border-t">
+            <h2 class="text-lg font-semibold mb-2">2. Herramientas</h2>
+            <!-- Auto -->
+            <div class="mb-4 space-y-2"> <button id="remove-edge-bg-btn" class="w-full bg-cyan-600 hover:bg-cyan-800 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Fondo Automático basado en bordes"><i class="fas fa-wand-magic-sparkles mr-1"></i> Auto (Bordes)</button> <button id="remove-inner-hole-btn" class="tool-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded btn-feedback disabled:opacity-50" title="Eliminar Hueco Interno (Clic en el hueco)"><i class="fas fa-highlighter mr-1"></i> Hueco (Clic)</button> <div class="mt-2"> <label for="edge-color-tolerance" class="block text-sm font-medium text-gray-700">Tolerancia Auto (<span id="edge-color-tolerance-value">30</span>):</label> <input type="range" id="edge-color-tolerance" min="1" max="150" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled> <p class="text-xs text-gray-500 mt-1">Para Auto (Bordes), Hueco y Varita.</p> </div> </div>
+            <!-- Manual -->
+            <div class="border-t pt-4"> <p class="text-sm font-medium text-gray-700 mb-2">Ajuste manual:</p> <div class="flex space-x-1 flex-wrap gap-y-1">
+                <button id="brush-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Pincel Conservar (B)" disabled><i class="fas fa-paint-brush fa-fw"></i></button>
+                <button id="eraser-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Borrador Eliminar (E)" disabled><i class="fas fa-eraser fa-fw"></i></button>
+                <button id="magic-wand-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Varita Mágica Eliminar (V)" disabled><i class="fas fa-wand-sparkles fa-fw"></i></button>
+                <button id="line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Línea Conservar (L)" disabled><i class="fas fa-minus fa-fw"></i></button>
+                <button id="eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Línea Borrador (Shift+L)" disabled><i class="fa-line-eraser"></i></button>
+                <button id="continuous-keep-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Trazo Conservar (C/W)" disabled><i class="fa-continuous-keep-line"></i></button>
+                <button id="continuous-eraser-line-tool" class="tool-btn p-2 rounded hover:bg-gray-200 disabled:opacity-50" title="Trazo Borrar (X/Q)" disabled><i class="fa-continuous-eraser-line"></i></button>
+            </div> </div>
+             <!-- Opciones Pincel/Herramienta -->
+             <div id="brush-options-section" class="space-y-3 pt-4 border-t"> <p class="text-sm font-medium text-gray-700 mb-2">Opciones Herramienta:</p> <div><label for="brush-size" class="block text-sm font-medium text-gray-700">Tamaño/Grosor: <span id="brush-size-value">50</span>px</label><input type="range" id="brush-size" min="1" max="150" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div> <div id="feather-option"><label for="brush-feather" class="block text-sm font-medium text-gray-700">Difuminado (Pincel): <span id="brush-feather-value">0.10</span></label><input type="range" id="brush-feather" min="0" max="1" step="0.05" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" title="Suavizado bordes pincel/borrador" disabled></div> <div><label for="brush-opacity" class="block text-sm font-medium text-gray-700">Opacidad (Pincel): <span id="brush-opacity-value">1.00</span></label><input type="range" id="brush-opacity" min="0.05" max="1" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled></div> <div id="shape-option"><label class="block text-sm font-medium text-gray-700">Forma (Pincel):</label><div class="flex space-x-2 mt-1"><button id="brush-shape-circle" class="brush-shape p-1 border rounded-full w-6 h-6 bg-gray-700 disabled:opacity-50" title="Circular" disabled></button><button id="brush-shape-square" class="brush-shape p-1 border rounded w-6 h-6 bg-gray-700 disabled:opacity-50" title="Cuadrado" disabled></button></div></div> </div>
+             <!-- Acciones y Fondo -->
+             <div class="pt-4 border-t space-y-3">
+                 <!-- Historial -->
+                 <div class="flex space-x-2">
+                     <button id="undo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Deshacer (Ctrl+Z)" disabled><i class="fas fa-undo"></i> (<span id="undo-count">0</span>)</button>
+                     <button id="redo-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Rehacer (Ctrl+Y)" disabled><i class="fas fa-redo"></i> (<span id="redo-count">0</span>)</button>
+                     <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" title="Resetear Máscara" disabled><i class="fas fa-trash-alt"></i> Reset</button>
+                 </div>
+                 <!-- Previsualización Fondo -->
+                 <div>
+                     <label class="block text-sm font-medium text-gray-700 mb-1">Fondo Previsualización:</label>
+                     <div class="flex space-x-1">
+                         <button id="bg-checkerboard" class="bg-btn flex-1 border border-gray-300 hover:bg-gray-200 rounded px-2 py-1 text-xs disabled:opacity-50" title="Fondo Damero" disabled><i class="fas fa-th"></i></button>
+                         <button id="bg-white" class="bg-btn flex-1 border border-gray-300 hover:bg-gray-200 rounded px-2 py-1 text-xs disabled:opacity-50" title="Fondo Blanco" disabled><i class="fas fa-square" style="color: #ddd;"></i></button>
+                         <button id="bg-black" class="bg-btn flex-1 border border-gray-300 hover:bg-gray-200 rounded px-2 py-1 text-xs disabled:opacity-50" title="Fondo Negro" disabled><i class="fas fa-square" style="color: #333;"></i></button>
+                     </div>
+                 </div>
+             </div>
+        </div> <!-- Fin Tools Section -->
+
+        <!-- Exportar / Copiar / Comparar -->
+         <div id="export-section" class="hidden pt-4 border-t space-y-2">
+             <h2 class="text-lg font-semibold mb-2">3. Guardar / Copiar</h2>
+             <button id="export-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback" disabled><i class="fas fa-download mr-1"></i> Exportar PNG</button>
+             <button id="copy-btn" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback" disabled><i class="fas fa-copy mr-1"></i> Copiar Imagen</button>
+             <!-- Botón Comparar (RE-AÑADIDO) -->
+             <button id="compare-btn" class="w-full bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 btn-feedback mt-2" disabled><i class="fas fa-columns mr-1"></i> Comparar</button>
+             <p id="clipboard-support-warning" class="text-xs text-red-600 text-center hidden">Copiar no soportado.</p>
+        </div>
+    </aside>
+    <!-- Área de Trabajo -->
+    <section class="flex-grow bg-gray-300 rounded-lg shadow overflow-hidden relative" id="canvas-section">
+        <div id="canvas-outer-container">
+            <div id="canvas-inner-container"> <canvas id="image-canvas" class="hidden"></canvas> <canvas id="preview-canvas" class="hidden"></canvas> </div>
+             <p id="canvas-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">Carga una imagen</p>
+        </div>
+        <div id="loading-spinner" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden z-50 pointer-events-none"> <i class="fas fa-spinner fa-spin fa-3x text-blue-500"></i> <p class="text-lg font-semibold ml-3">Cargando...</p> </div>
+        <div id="processing-overlay" class="processing-overlay hidden"> <i class="fas fa-spinner fa-spin fa-3x"></i> <p id="processing-status-text">Procesando...</p> </div>
+        <div id="status-bar" class="absolute bottom-0 left-0 bg-black bg-opacity-60 text-white text-xs p-1 rounded-tr z-10 pointer-events-none">Zoom: <span id="zoom-level">100</span>% | Herramienta: <span id="current-tool-status">Ninguna</span> | Rueda=Zoom, Espacio+Arrastrar=Mover</div>
+    </section>
+</main>
+
+<!-- === Popup de Comparación === -->
+<div id="compare-popup-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000] hidden p-4">
+    <div id="compare-popup-content" class="bg-gray-100 p-4 md:p-6 rounded-lg shadow-xl max-w-5xl w-full relative flex flex-col max-h-[90vh]">
+        <button id="compare-popup-close" class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-3xl leading-none z-10 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">×</button>
+        <h3 class="text-xl md:text-2xl font-semibold mb-4 text-center text-gray-800 flex-shrink-0">Comparación Antes / Después</h3>
+        <div id="compare-container-wrapper" class="relative w-full flex-grow overflow-auto flex items-center justify-center p-2 bg-gray-300 rounded">
+            <img-comparison-slider class="rendered">
+                <img id="compare-before-img" slot="first" src="" alt="Antes" />
+                <img id="compare-after-img" slot="second" src="" alt="Después" />
+                 <svg slot="handle" class="compare-handle-icon" xmlns="http://www.w3.org/2000/svg" width="40" viewBox="-8 -3 16 6">
+                     <path d="M -5 -2 L -7 -2 L -7 2 L -5 2 L -5 3 L 5 3 L 5 2 L 7 2 L 7 -2 L 5 -2 L 5 -3 L -5 -3 L -5 -2" fill="currentColor" />
+                     <path d="M -4 -1 L -4 1 L -2 1 L -2 -1 L -4 -1 M 2 -1 L 2 1 L 4 1 L 4 -1 L 2 -1" fill="#fff"/>
+                 </svg>
+            </img-comparison-slider>
+        </div>
+        <p class="text-center text-sm text-gray-600 mt-2 flex-shrink-0">Arrastra el control deslizante</p>
+    </div>
+</div>
+<!-- === FIN Popup === -->
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => { // <-- Make async
+        // Esperar a que el web component esté definido
+        await customElements.whenDefined('img-comparison-slider');
+        console.log("DOM Cargado - XocoStudio BG Remover (Completo + Comparador) - img-comparison-slider definido");
+
+        // --- DOM Elements ---
+         const dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('file-input'),uploadBtn=document.getElementById('upload-btn'),pasteBtn=document.getElementById('paste-btn'),pasteSupportWarning=document.getElementById('paste-support-warning'),filenameDisplay=document.getElementById('filename-display'),canvasSection=document.getElementById('canvas-section'), canvasOuterContainer=document.getElementById('canvas-outer-container'),canvasInnerContainer=document.getElementById('canvas-inner-container'),canvas=document.getElementById('image-canvas'),previewCanvas=document.getElementById('preview-canvas'),canvasPlaceholder=document.getElementById('canvas-placeholder'),loadingSpinner=document.getElementById('loading-spinner'),toolsSection=document.getElementById('tools-section'),exportSection=document.getElementById('export-section'),brushBtn=document.getElementById('brush-tool'),eraserBtn=document.getElementById('eraser-tool'),magicWandBtn=document.getElementById('magic-wand-tool'), lineBtn=document.getElementById('line-tool'),eraserLineBtn=document.getElementById('eraser-line-tool'),continuousKeepLineBtn=document.getElementById('continuous-keep-line-tool'),continuousEraserLineBtn=document.getElementById('continuous-eraser-line-tool'),removeEdgeBgBtn=document.getElementById('remove-edge-bg-btn'),removeInnerHoleBtn=document.getElementById('remove-inner-hole-btn'),brushOptionsSection=document.getElementById('brush-options-section'),featherOptionDiv=document.getElementById('feather-option'),shapeOptionDiv=document.getElementById('shape-option'),brushSizeSlider=document.getElementById('brush-size'),brushSizeValue=document.getElementById('brush-size-value'),brushFeatherSlider=document.getElementById('brush-feather'),brushFeatherValue=document.getElementById('brush-feather-value'),brushOpacitySlider=document.getElementById('brush-opacity'),brushOpacityValue=document.getElementById('brush-opacity-value'),shapeCircleBtn=document.getElementById('brush-shape-circle'),shapeSquareBtn=document.getElementById('brush-shape-square'),edgeColorToleranceSlider=document.getElementById('edge-color-tolerance'),edgeColorToleranceValueSpan=document.getElementById('edge-color-tolerance-value'),undoBtn=document.getElementById('undo-btn'),undoCountSpan=document.getElementById('undo-count'),redoBtn=document.getElementById('redo-btn'), redoCountSpan=document.getElementById('redo-count'), resetBtn=document.getElementById('reset-btn'),bgCheckerboardBtn=document.getElementById('bg-checkerboard'), bgWhiteBtn=document.getElementById('bg-white'), bgBlackBtn=document.getElementById('bg-black'), exportBtn=document.getElementById('export-btn'),copyBtn=document.getElementById('copy-btn'),clipboardSupportWarning=document.getElementById('clipboard-support-warning'),zoomLevelSpan=document.getElementById('zoom-level'),currentToolSpan=document.getElementById('current-tool-status'),processingOverlay=document.getElementById('processing-overlay'),processingStatusText=document.getElementById('processing-status-text');
+         const compareBtn=document.getElementById('compare-btn'), comparePopupOverlay=document.getElementById('compare-popup-overlay'),comparePopupContent=document.getElementById('compare-popup-content'),comparePopupCloseBtn=document.getElementById('compare-popup-close'),compareBeforeImg=document.getElementById('compare-before-img'),compareAfterImg=document.getElementById('compare-after-img');
+
+
+        // --- State Variables ---
+         let ctx=null,previewCtx=null,maskCtx=null,originalImage=null,originalImageDataCache=null,maskCanvas=null,imageFilename='imagen',isDrawing=false,lastX=0,lastY=0,history=[],redoHistory = [], currentTool='eraser',brushOptions={size:50,feather:0.1,opacity:1.0,shape:'circle'},zoomLevel=1.0,panX=0,panY=0,isPanning=false,panStartX=0,panStartY=0,isSpacePressed=false,isDrawingLine=false,lineStartX=0,lineStartY=0,isDrawingContinuousLine=false,lastContinuousLinePoint=null,currentMousePos={x:0,y:0},isClipboardWriteSupported=!!(navigator.clipboard&&navigator.clipboard.write),isClipboardReadSupported=!!(navigator.clipboard&&navigator.clipboard.read),isFloodFilling=false,cancelFloodFillRequest=false,waitingForInnerHoleClick=false,holeRemoverFeedbackTimeout=null;
+         let isComparePopupOpen = false;
+         const MAX_HISTORY = 30;
+         let currentBackground = 'checkerboard';
+
+        // --- Performance Throttling ---
+        let lastRenderTime = 0; const RENDER_THROTTLE = 16; // ms
+
+        // --- Verification ---
+         if (!canvas || !previewCanvas || !dropZone || !fileInput || !uploadBtn || !pasteBtn || !removeEdgeBgBtn || !removeInnerHoleBtn || !magicWandBtn || !continuousKeepLineBtn || !continuousEraserLineBtn || !canvasOuterContainer || !canvasInnerContainer || !toolsSection || !exportSection || !compareBtn || !comparePopupOverlay || !comparePopupCloseBtn || !compareBeforeImg || !compareAfterImg || !undoBtn || !redoBtn || !resetBtn || !bgCheckerboardBtn || !bgWhiteBtn || !bgBlackBtn ) { console.error("ERROR CRÍTICO: Falta elemento DOM (Revisar IDs)."); alert("Error: No se pudo iniciar la aplicación."); return; }
+         console.log("Elementos DOM verificados OK.");
+
+        // --- Initialization ---
+        setActiveTool('eraser');
+        updateToolOptionsDisplay();
+        setupImageLoadingListeners();
+        setupInteractionListeners();
+        setupToolControlListeners();
+        setupBackgroundPreviewListeners();
+        setupComparePopupListeners();
+        checkClipboardSupport();
+        updateActionButtonsState();
+        setBackgroundPreview(currentBackground);
+        console.log("Inicialización de la aplicación completada.");
+
+
+        // --- Helper Functions ---
+         function cancelContinuousLineDrawing(silent=false){if(isDrawingContinuousLine){if(!silent)console.log("Cancelando trazo continuo.");isDrawingContinuousLine=false;lastContinuousLinePoint=null;clearPreviewCanvas();updateStatusBar();canvasOuterContainer.style.cursor=getToolCursor();updateActionButtonsState();if (!isComparePopupOpen) drawToolPreview(currentMousePos.x,currentMousePos.y); return true;}return false;}
+         function simulateEscapeKeyPressLogic(){
+             // Only close compare popup if it's open
+             if (isComparePopupOpen) {
+                 closeComparePopup();
+                 console.log("Popup cerrado por Esc.");
+                 return true; // Indicate something was done
+             }
+             // If popup wasn't open, handle other potential cancellations
+             let c=false;
+             if(waitingForInnerHoleClick){cancelInnerHoleClickMode();console.log("Modo Hueco cancelado (Esc).");c=true;}
+             if(isDrawingLine){isDrawingLine=false;clearPreviewCanvas();updateActionButtonsState();canvasOuterContainer.style.cursor=getToolCursor();console.log("Línea cancelada (Esc).");c=true;}
+             if(cancelContinuousLineDrawing(true)){console.log("Trazo continuo cancelado (Esc).");c=true;}
+             if(isDrawing) { isDrawing = false; updateActionButtonsState(); console.log("Dibujo cancelado (Esc)."); c = true; canvasOuterContainer.style.cursor = getToolCursor(); }
+             // Draw preview only if something was cancelled AND the popup is NOT open
+             if(c && !isComparePopupOpen) drawToolPreview(currentMousePos.x,currentMousePos.y);
+             return c; // Return if any action was taken
+         }
+         // Modified isIdle() to NOT consider isComparePopupOpen
+         function isGenerallyIdle(){return!isDrawing&&!isDrawingLine&&!isDrawingContinuousLine&&!waitingForInnerHoleClick&&!isFloodFilling&&!isPanning;}
+
+
+        // --- Setup Functions ---
+        function setupImageLoadingListeners(){console.log("Configurando listeners de carga de imagen...");dropZone.addEventListener('dragover',(e)=>{e.preventDefault();dropZone.classList.add('border-blue-500','bg-blue-50');});dropZone.addEventListener('dragleave',(e)=>{e.preventDefault();dropZone.classList.remove('border-blue-500','bg-blue-50');});dropZone.addEventListener('drop',(e)=>{e.preventDefault();dropZone.classList.remove('border-blue-500','bg-blue-50');const f=e.dataTransfer?.files?.[0];if(f?.type.startsWith('image/'))handleFile(f);else if(f)alert('Por favor, suelta un archivo de imagen válido.');});uploadBtn.addEventListener('click',()=>fileInput.click());pasteBtn.addEventListener('click',handlePasteButtonClick);fileInput.addEventListener('change',(e)=>{const f=e.target.files?.[0];if(f?.type.startsWith('image/')){handleFile(f);e.target.value=null;}else if(f)alert('Por favor, selecciona un archivo de imagen válido.');});window.addEventListener('paste',(e)=>{const a=document.activeElement;if(isComparePopupOpen || a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable)return; if(handleClipboardPaste(e.clipboardData))e.preventDefault();});console.log("Listeners de carga añadidos.");}
+        function setupInteractionListeners(){console.log("Configurando listeners de interacción del canvas...");window.addEventListener('keydown',handleKeyDown);window.addEventListener('keyup',handleKeyUp);canvasOuterContainer.addEventListener('mousedown',handleInteractionStart);canvasOuterContainer.addEventListener('mousemove',handleInteractionMove);window.addEventListener('mouseup',handleInteractionEnd);canvasOuterContainer.addEventListener('touchstart',(e)=>handleInteractionStart(e.touches[0]),{passive:false});canvasOuterContainer.addEventListener('touchmove',(e)=>handleInteractionMove(e.touches[0]),{passive:false});window.addEventListener('touchend',(e)=>handleInteractionEnd(e.changedTouches[0]));window.addEventListener('touchcancel',(e)=>handleInteractionEnd(e.changedTouches[0]));canvasOuterContainer.addEventListener('wheel',handleWheelZoom,{passive:false});canvasOuterContainer.addEventListener('mouseleave',()=>{if(!isDrawingLine&&!isDrawingContinuousLine && !isComparePopupOpen )clearPreviewCanvas();});console.log("Listeners de interacción añadidos.");}
+         function setupBackgroundPreviewListeners() {
+             console.log("Configurando listeners de previsualización de fondo...");
+             bgCheckerboardBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setBackgroundPreview('checkerboard'); });
+             bgWhiteBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setBackgroundPreview('white'); });
+             bgBlackBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setBackgroundPreview('black'); });
+             console.log("Listeners de previsualización de fondo añadidos.");
+         }
+        function setupToolControlListeners() {
+             console.log("Configurando listeners herramientas...");
+             // Standard tool buttons (still disabled if popup open)
+             brushBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('brush'); });
+             eraserBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('eraser'); });
+             magicWandBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('magic-wand'); });
+             lineBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('line'); });
+             eraserLineBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('eraser-line'); });
+             continuousKeepLineBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('continuous-keep-line'); });
+             continuousEraserLineBtn.addEventListener('click', () => { if(isComparePopupOpen) return; setActiveTool('continuous-eraser-line'); });
+             // Options (still disabled if popup open)
+             brushSizeSlider.addEventListener('input', (e) => { if(isComparePopupOpen) return; brushOptions.size = parseInt(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             brushFeatherSlider.addEventListener('input', (e) => { if(isComparePopupOpen) return; brushOptions.feather = parseFloat(e.target.value); updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             brushOpacitySlider.addEventListener('input', (e) => { if(isComparePopupOpen) return; brushOptions.opacity = parseFloat(e.target.value); updateToolOptionsDisplay(); });
+             shapeCircleBtn.addEventListener('click', () => { if(isComparePopupOpen) return; brushOptions.shape = 'circle'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             shapeSquareBtn.addEventListener('click', () => { if(isComparePopupOpen) return; brushOptions.shape = 'square'; updateToolOptionsDisplay(); drawToolPreview(currentMousePos.x, currentMousePos.y); });
+             edgeColorToleranceSlider.addEventListener('input', (e) => { if(isComparePopupOpen) return; edgeColorToleranceValueSpan.textContent = e.target.value; }); // Tolerance needed for hole remover
+             // History/Reset (still disabled if popup open)
+             undoBtn.addEventListener('click', () => { if(isComparePopupOpen) return; undo(); });
+             redoBtn.addEventListener('click', () => { if(isComparePopupOpen) return; redo(); });
+             resetBtn.addEventListener('click', () => { if (isComparePopupOpen || !originalImage || history.length <= 1) return; if (confirm('¿Estás seguro de que quieres resetear todas las ediciones?')) { /* simulateEscapeKeyPressLogic(); NO NEED */ resetMask(); } });
+             // Export/Copy (still disabled if popup open)
+             exportBtn.addEventListener('click', exportImage);
+             copyBtn.addEventListener('click', copyImageToClipboard);
+             // Auto Edge BG (still disabled if popup open)
+             removeEdgeBgBtn.addEventListener('click', () => { if(isComparePopupOpen) return; simulateEscapeKeyPressLogic(); if (isFloodFilling) { console.log("%cSolicitando cancelación...", 'color: orange;'); cancelFloodFillRequest = true; processingStatusText.textContent = "Cancelando..."; showButtonFeedback(removeEdgeBgBtn, 'cancelling', 'Cancelando...', 60000); } else if (isGenerallyIdle()) { handleRemoveBackgroundByFloodFill(); } });
+
+             // *** MODIFIED: Inner Hole Button Listener ***
+             removeInnerHoleBtn.addEventListener('click', () => {
+                 // REMOVED isComparePopupOpen check here
+                 if (isFloodFilling) {
+                     console.warn("Ignorando clic en Hueco: Flood fill en progreso.");
+                     return;
+                 }
+                 if (waitingForInnerHoleClick) {
+                     cancelInnerHoleClickMode();
+                 } else {
+                     // simulateEscapeKeyPressLogic(); // Don't call this if popup might be open
+                     activateInnerHoleClickMode();
+                 }
+             });
+             console.log("Listeners de herramientas añadidos.");
+        }
+         function setupComparePopupListeners(){console.log("Configurando listeners del popup de comparación...");if(!compareBtn||!comparePopupOverlay||!comparePopupCloseBtn){console.error("Error crítico: Faltan elementos del DOM para el popup de comparación.");return;}compareBtn.addEventListener('click',openComparePopup);comparePopupCloseBtn.addEventListener('click',closeComparePopup);comparePopupOverlay.addEventListener('click',(e)=>{if(e.target===comparePopupOverlay)closeComparePopup();});console.log("Listeners del popup de comparación añadidos.");}
+
+        // --- Core Logic ---
+         function handleFile(file){console.log('>>> Procesando archivo:',file?.name);simulateEscapeKeyPressLogic();if(!file?.type?.startsWith('image/')){alert('Archivo no válido. Por favor, selecciona una imagen.');console.error('Tipo de archivo inválido:',file?.type);return;}const reader=new FileReader();reader.onloadstart=()=>{console.log('   Inicio de carga de archivo.');showLoadingState(file.name);};reader.onload=(e)=>{console.log('   Archivo cargado en memoria.');if(!e.target?.result){handleLoadingError(file.name,'No se pudo leer el contenido del archivo.');return;}originalImage=new Image();originalImage.onload=()=>{console.log(`  Imagen decodificada OK: ${originalImage.naturalWidth}x${originalImage.naturalHeight}`);if(originalImage.naturalWidth===0||originalImage.naturalHeight===0){handleLoadingError(file.name,'La imagen tiene dimensiones 0x0.');originalImage=null;return;}initializeEditor(file.name,originalImage);};originalImage.onerror=(err)=>{console.error('Error al decodificar la imagen:',err);handleLoadingError(file.name,'No se pudo decodificar la imagen.');originalImage=null;};originalImage.src=e.target.result;};reader.onerror=(err)=>{console.error('Error de lectura del archivo:',err);handleLoadingError(file.name,'Ocurrió un error al leer el archivo.');};try{reader.readAsDataURL(file);}catch(error){console.error("Error iniciando readAsDataURL:",error);handleLoadingError(file.name,'Error interno al intentar leer el archivo.');}}
+         function showLoadingState(fileName){console.log("Mostrando estado de carga para:",fileName);simulateEscapeKeyPressLogic();loadingSpinner.classList.remove('hidden');canvasPlaceholder.classList.add('hidden');filenameDisplay.textContent=`Cargando: ${fileName}...`;toolsSection.classList.add('hidden');exportSection.classList.add('hidden');canvas.classList.add('hidden');previewCanvas.classList.add('hidden');originalImage=null;originalImageDataCache=null;ctx=previewCtx=maskCtx=null;history=[];redoHistory=[];updateActionButtonsState();}
+         function handleLoadingError(fileName,message){console.error(`Error cargando "${fileName||'imagen'}": ${message}`);simulateEscapeKeyPressLogic();alert(`Error al cargar "${fileName||'la imagen'}":\n${message}`);loadingSpinner.classList.add('hidden');canvasPlaceholder.classList.remove('hidden');filenameDisplay.textContent=`Error de carga`;toolsSection.classList.add('hidden');exportSection.classList.add('hidden');originalImage=null;originalImageDataCache=null;ctx=previewCtx=maskCtx=null;history=[];redoHistory=[];updateActionButtonsState();}
+         function initializeEditor(fileName,loadedImage){console.log(">>> Inicializando editor para:",fileName);simulateEscapeKeyPressLogic();if(!loadedImage||!loadedImage.naturalWidth||!loadedImage.naturalHeight){handleLoadingError(fileName,"Datos de imagen inválidos al inicializar.");return;}imageFilename=fileName.replace(/\.[^/.]+$/,"")||'imagen_editada';filenameDisplay.textContent=`Editando: ${fileName} (${loadedImage.naturalWidth}x${loadedImage.naturalHeight})`;try{ctx=canvas.getContext('2d',{willReadFrequently:false});previewCtx=previewCanvas.getContext('2d',{willReadFrequently:true});if(!ctx||!previewCtx)throw new Error("No se pudieron obtener los contextos 2D de los canvas.");console.log("   Contextos de canvas principales obtenidos.");}catch(e){console.error("ERROR FATAL al obtener contextos de canvas:",e);handleLoadingError(fileName,"Error interno al inicializar los canvas.");return;}if(!setupCanvases(loadedImage)){handleLoadingError(fileName,"Error al configurar las dimensiones de los canvas.");return;}cacheOriginalImageData();resetMask();centerAndFitImage();requestRender();toolsSection.classList.remove('hidden');exportSection.classList.remove('hidden');canvas.classList.remove('hidden');previewCanvas.classList.remove('hidden');loadingSpinner.classList.add('hidden');canvasPlaceholder.classList.add('hidden');setActiveTool(currentTool); updateActionButtonsState();console.log("<<< Editor inicializado correctamente.");}
+         function setupCanvases(img){console.log(">>> Configurando dimensiones de los canvas...");if(!img?.naturalWidth||!img?.naturalHeight||!canvas||!previewCanvas||!canvasInnerContainer)return false;const w=img.naturalWidth,h=img.naturalHeight;canvas.width=w;canvas.height=h;previewCanvas.width=w;previewCanvas.height=h;canvasInnerContainer.style.width=`${w}px`;canvasInnerContainer.style.height=`${h}px`;try{maskCanvas=document.createElement('canvas');maskCanvas.width=w;maskCanvas.height=h;maskCtx=maskCanvas.getContext('2d',{willReadFrequently:true});if(!maskCtx)throw new Error("No se pudo obtener el contexto 2D del canvas de máscara.");console.log("   Canvas de máscara creado correctamente.");}catch(e){alert("Error fatal: No se pudo crear el canvas interno para la máscara.");console.error("Error crítico creando maskCtx:",e);maskCanvas=maskCtx=null;return false;}console.log(`   Dimensiones de canvas establecidas a ${w}x${h}`);return true;}
+         function cacheOriginalImageData(){if(!originalImage||!canvas||!maskCanvas){originalImageDataCache=null;console.warn("No se pudo cachear ImageData: imagen o canvas no disponibles.");return;}console.log("Cacheando ImageData original...");const tempC=document.createElement('canvas');tempC.width=originalImage.naturalWidth;tempC.height=originalImage.naturalHeight;const tempCtx=tempC.getContext('2d',{willReadFrequently:true});if(!tempCtx){console.error("Error al crear contexto temporal para cachear ImageData.");originalImageDataCache=null;return;}try{tempCtx.drawImage(originalImage,0,0);originalImageDataCache=tempCtx.getImageData(0,0,tempC.width,tempC.height);console.log("   ImageData original cacheada OK.");}catch(e){console.error("Error al obtener ImageData (posible problema de CORS si la imagen es de otro dominio):",e);alert("Advertencia: No se pudo acceder a los píxeles originales de la imagen (¿CORS?). Las herramientas automáticas (bordes, hueco, varita) podrían no funcionar correctamente.");originalImageDataCache=null;}}
+         function centerAndFitImage(){if(!originalImage||!canvasOuterContainer)return;const imgW=originalImage.naturalWidth,imgH=originalImage.naturalHeight;const contW=canvasOuterContainer.clientWidth,contH=canvasOuterContainer.clientHeight;if(contW <= 0 || contH <= 0) { console.warn("Contenedor de canvas sin dimensiones, no se puede centrar/ajustar."); return; }zoomLevel=Math.min(1,Math.min(contW/imgW,contH/imgH)*0.95);panX=(contW-imgW*zoomLevel)/2;panY=(contH-imgH*zoomLevel)/2;updateTransform();updateStatusBar();console.log(`Imagen centrada y ajustada: zoom=${zoomLevel.toFixed(2)}, panX=${panX.toFixed(0)}, panY=${panY.toFixed(0)}`);}
+         function resetMask(){if(!maskCtx||!maskCanvas||!originalImage)return;console.log("Reseteando máscara a completamente opaca (blanca).");maskCtx.fillStyle='white';maskCtx.fillRect(0,0,maskCanvas.width,maskCanvas.height);history=[];redoHistory=[];saveStateToHistory(); updateActionButtonsState();requestRender();}
+
+        // --- Rendering & Previews ---
+         function requestRender(){const n=performance.now();if(n-lastRenderTime>=RENDER_THROTTLE){renderCanvas();lastRenderTime=n;}}
+         function renderCanvas(){if(!ctx||!originalImage||!maskCanvas)return;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.globalCompositeOperation='source-over';ctx.drawImage(originalImage,0,0);ctx.globalCompositeOperation='destination-in';ctx.drawImage(maskCanvas,0,0);ctx.globalCompositeOperation='source-over';}
+         function clearPreviewCanvas(){if(previewCtx)previewCtx.clearRect(0,0,previewCanvas.width,previewCanvas.height);}
+         function drawToolPreview(ix,iy){
+             clearPreviewCanvas();
+             // Don't draw preview if popup is open, panning, filling, or waiting for hole click (handled by cursor)
+             if(isComparePopupOpen || isPanning || isFloodFilling || waitingForInnerHoleClick) return;
+             // Original preview logic
+             if(currentTool==='brush'||currentTool==='eraser')drawBrushPreview(ix,iy);
+             else if(isDrawingLine){drawSimpleLineMarker(lineStartX,lineStartY);drawSimpleLinePreview(lineStartX,lineStartY,ix,iy);}
+             else if(isDrawingContinuousLine){if(lastContinuousLinePoint){drawContinuousLineMarker(lastContinuousLinePoint.x,lastContinuousLinePoint.y);drawContinuousLinePreview(lastContinuousLinePoint.x,lastContinuousLinePoint.y,ix,iy);}}
+             else if(['line','eraser-line','continuous-keep-line','continuous-eraser-line', 'magic-wand'].includes(currentTool))drawCrosshairPreview(ix,iy);
+         }
+         function drawBrushPreview(ix,iy){if(!previewCtx||!originalImage)return;const s=brushOptions.size,f=s*brushOptions.feather,sr=Math.max(0,s/2-f/2),tr=s/2;previewCtx.save();previewCtx.globalAlpha=0.6;const pc=(currentTool==='eraser')?'rgba(255,0,0,0.7)':'rgba(0,0,0,0.7)',oc='rgba(255,255,255,0.9)';if(brushOptions.shape==='circle'){const g=previewCtx.createRadialGradient(ix,iy,sr,ix,iy,tr);g.addColorStop(0,pc);g.addColorStop(1,'rgba(0,0,0,0)');previewCtx.fillStyle=g;previewCtx.beginPath();previewCtx.arc(ix,iy,tr,0,Math.PI*2);previewCtx.fill();previewCtx.strokeStyle=oc;previewCtx.lineWidth=1/zoomLevel;previewCtx.stroke();}else{const hs=s/2;previewCtx.fillStyle=pc;previewCtx.fillRect(ix-hs,iy-hs,s,s);previewCtx.strokeStyle=oc;previewCtx.lineWidth=1/zoomLevel;previewCtx.strokeRect(ix-hs,iy-hs,s,s);}previewCtx.restore();}
+         function drawSimpleLineMarker(ix,iy){if(!previewCtx)return;const k=currentTool==='line';previewCtx.fillStyle=k?'rgba(0,255,0,0.7)':'rgba(255,0,0,0.7)';previewCtx.beginPath();previewCtx.arc(ix,iy,5/zoomLevel,0,Math.PI*2);previewCtx.fill();}
+         function drawSimpleLinePreview(sx,sy,ex,ey){if(!previewCtx)return;const k=currentTool==='line';previewCtx.save();previewCtx.beginPath();previewCtx.moveTo(sx,sy);previewCtx.lineTo(ex,ey);previewCtx.strokeStyle=k?'rgba(0,255,0,0.5)':'rgba(255,0,0,0.5)';previewCtx.lineWidth=brushOptions.size;previewCtx.lineCap='round';previewCtx.stroke();previewCtx.restore();}
+         function drawContinuousLineMarker(ix,iy){if(!previewCtx)return;const k=currentTool==='continuous-keep-line';previewCtx.fillStyle=k?'rgba(0,255,0,0.8)':'rgba(255,0,0,0.8)';previewCtx.beginPath();previewCtx.arc(ix,iy,4/zoomLevel,0,Math.PI*2);previewCtx.fill();}
+         function drawContinuousLinePreview(sx,sy,ex,ey){if(!previewCtx)return;const k=currentTool==='continuous-keep-line';previewCtx.save();previewCtx.beginPath();previewCtx.moveTo(sx,sy);previewCtx.lineTo(ex,ey);previewCtx.strokeStyle=k?'rgba(0,255,0,0.5)':'rgba(255,0,0,0.5)';previewCtx.lineWidth=brushOptions.size;previewCtx.lineCap='round';previewCtx.stroke();previewCtx.restore();}
+         function drawCrosshairPreview(ix,iy){if(!previewCtx)return;const cs=10/zoomLevel;previewCtx.save();previewCtx.strokeStyle='rgba(0,0,0,0.6)';previewCtx.lineWidth=1/zoomLevel;previewCtx.beginPath();previewCtx.moveTo(ix-cs,iy);previewCtx.lineTo(ix+cs,iy);previewCtx.moveTo(ix,iy-cs);previewCtx.lineTo(ix,iy+cs);previewCtx.stroke();previewCtx.restore();}
+
+        // --- Mask Modification ---
+        function applyMaskModification(dx,dy,t,o){if(!maskCtx||(t!=='brush'&&t!=='eraser'))return;const ie=t==='eraser';maskCtx.save();maskCtx.globalCompositeOperation=ie?'destination-out':'source-over';const s=o.size,hs=s/2,f=o.feather,op=o.opacity,c=ie?'0,0,0':'255,255,255';if(o.shape==='circle'){const sr=Math.max(0,hs*(1-f)),g=maskCtx.createRadialGradient(dx,dy,sr,dx,dy,hs);g.addColorStop(0,`rgba(${c}, ${op})`);g.addColorStop(1,`rgba(${c}, 0)`);maskCtx.fillStyle=g;maskCtx.beginPath();maskCtx.arc(dx,dy,hs,0,Math.PI*2);maskCtx.fill();}else{maskCtx.fillStyle=`rgba(${c}, ${op})`;maskCtx.fillRect(dx-hs,dy-hs,s,s);}maskCtx.restore();}
+        function drawLineOnMask(x1,y1,x2,y2,t,o){if(!maskCtx)return;const ie=t==='eraser'||t==='eraser-line'||t==='continuous-eraser-line',s=o.size,op=o.opacity;maskCtx.save();maskCtx.globalCompositeOperation=ie?'destination-out':'source-over';maskCtx.beginPath();maskCtx.moveTo(x1,y1);maskCtx.lineTo(x2,y2);maskCtx.lineWidth=s;maskCtx.lineCap='round';maskCtx.lineJoin='round';const c=ie?`rgba(0,0,0,${op})`:`rgba(255,255,255,${op})`;maskCtx.strokeStyle=c;maskCtx.stroke();maskCtx.restore();requestRender();}
+
+        // --- Interaction Handling ---
+        function getInteractionPos(e){if(!canvasOuterContainer)return{screenX:0,screenY:0,imageX:0,imageY:0};const r=canvasOuterContainer.getBoundingClientRect(),cx=e.clientX??e.pageX??0,cy=e.clientY??e.pageY??0,sx=cx-r.left,sy=cy-r.top,ix=(sx-panX)/zoomLevel,iy=(sy-panY)/zoomLevel;return{screenX:sx,screenY:sy,imageX:ix,imageY:iy};}
+        // *** MODIFIED: handleInteractionStart ***
+        function handleInteractionStart(e){
+             // *** PRIORITY CHECK: Handle hole click first, even if popup is open ***
+             if (waitingForInnerHoleClick) {
+                 // Basic checks still needed
+                 if (!originalImage || isFloodFilling) {
+                     console.warn("Interacción de Clic-Hueco ignorada: Sin imagen o flood fill en progreso.");
+                     return;
+                 }
+                 if (e.preventDefault && e.cancelable) e.preventDefault();
+                 const { imageX: ix, imageY: iy } = getInteractionPos(e);
+                 removeInnerHoleAt(ix, iy); // Attempt to remove the hole
+                 return; // Stop further processing for this click
+             }
+
+             // --- Original checks for general interaction blocking ---
+             // Block other interactions if popup is open OR normal conditions apply
+             if(isComparePopupOpen || !originalImage || isFloodFilling) {
+                 // console.log("Interaction blocked: Popup open or invalid state."); // Optional debug
+                 return;
+             }
+
+             // --- Resume original logic for interactions when popup is CLOSED ---
+             if(e.preventDefault && e.cancelable) e.preventDefault();
+             const{screenX:sx, screenY:sy, imageX:ix, imageY:iy} = getInteractionPos(e);
+
+             // Check for panning (Space key)
+             if(isSpacePressed){
+                 isPanning=true;
+                 panStartX=sx-panX;
+                 panStartY=sy-panY;
+                 canvasOuterContainer.style.cursor='grabbing';
+                 return;
+             }
+
+             // Handle tool actions (original logic, hole click is handled above)
+             switch(currentTool){
+                 case 'magic-wand': applyMagicWand(ix, iy); break;
+                 case 'line': case 'eraser-line':
+                     if(!isDrawingLine){
+                         isDrawingLine=true; lineStartX=ix; lineStartY=iy; updateActionButtonsState(); drawToolPreview(ix,iy); canvasOuterContainer.style.cursor='crosshair';
+                     } else {
+                         drawLineOnMask(lineStartX, lineStartY, ix, iy, currentTool, brushOptions); saveStateToHistory(); isDrawingLine=false; clearPreviewCanvas(); updateActionButtonsState(); canvasOuterContainer.style.cursor=getToolCursor(); drawToolPreview(ix,iy);
+                     }
+                     break;
+                 case 'continuous-keep-line': case 'continuous-eraser-line':
+                      if(!isDrawingContinuousLine){
+                         isDrawingContinuousLine=true; lastContinuousLinePoint={x:ix,y:iy}; updateActionButtonsState(); drawToolPreview(ix,iy); canvasOuterContainer.style.cursor='crosshair';
+                     } else {
+                         drawLineOnMask(lastContinuousLinePoint.x, lastContinuousLinePoint.y, ix, iy, currentTool, brushOptions); lastContinuousLinePoint={x:ix,y:iy}; saveStateToHistory(); drawToolPreview(ix,iy);
+                     }
+                     break;
+                 case 'brush': case 'eraser': default:
+                     if(isDrawingLine){ isDrawingLine=false; clearPreviewCanvas(); updateActionButtonsState(); } // End line drawing if switching
+                     cancelContinuousLineDrawing(true); // End continuous line if switching
+                     isDrawing=true; lastX=ix; lastY=iy; updateActionButtonsState(); applyMaskModification(ix, iy, currentTool, brushOptions); requestRender(); canvasOuterContainer.style.cursor='none'; drawToolPreview(ix,iy);
+                     break;
+             }
+         }
+        function handleInteractionMove(e){
+             // Don't process move if popup is open AND we are NOT waiting for a hole click
+             if(isComparePopupOpen && !waitingForInnerHoleClick) return;
+             // If waiting for hole click, we still might want to update the cursor (though it should be fixed crosshair)
+             if (waitingForInnerHoleClick) {
+                 // Optional: update currentMousePos if needed elsewhere, but don't draw preview
+                 const{imageX:ix, imageY:iy} = getInteractionPos(e);
+                 currentMousePos = {x:ix, y:iy};
+                 canvasOuterContainer.style.cursor = getToolCursor(); // Ensure cursor stays crosshair
+                 return;
+             }
+             // --- Original move logic (only runs if popup closed) ---
+             if (!originalImage) return;
+             const{screenX:sx,screenY:sy,imageX:ix,imageY:iy}=getInteractionPos(e);currentMousePos={x:ix,y:iy};
+             const busy=isFloodFilling||waitingForInnerHoleClick; // waitingForInnerHoleClick is false here
+             if(isPanning){panX=sx-panStartX;panY=sy-panStartY;updateTransform();updateStatusBar();}
+             else if(busy){canvasOuterContainer.style.cursor=getToolCursor();clearPreviewCanvas();}
+             else if(isDrawing){drawLineOnMask(lastX,lastY,ix,iy,currentTool,brushOptions);lastX=ix;lastY=iy;drawToolPreview(ix,iy);canvasOuterContainer.style.cursor='none';}
+             else{drawToolPreview(ix,iy);canvasOuterContainer.style.cursor=(currentTool==='brush'||currentTool==='eraser')?'none':getToolCursor();}
+         }
+        function handleInteractionEnd(e){
+             // Don't process end if popup is open AND we are NOT waiting for a hole click
+             // (hole click end is handled within removeInnerHoleAt)
+             if(isComparePopupOpen && !waitingForInnerHoleClick) return;
+
+             // If waiting for hole click, the end event is irrelevant here, handled by removeInnerHoleAt
+             if (waitingForInnerHoleClick) return;
+
+             // --- Original End Logic (only runs if popup closed) ---
+             if(isPanning){isPanning=false;canvasOuterContainer.style.cursor=getToolCursor();}
+             else if(isDrawing){isDrawing=false;saveStateToHistory();updateActionButtonsState();canvasOuterContainer.style.cursor='none';drawToolPreview(currentMousePos.x,currentMousePos.y);}
+         }
+        function handleKeyDown(e){
+              // Handle Esc for popup FIRST
+              if (isComparePopupOpen && e.key === 'Escape') {
+                   // If waiting for hole click, cancel that mode *instead* of closing popup? User choice.
+                   // Current behavior: Escape always closes popup if open.
+                   e.preventDefault();
+                   closeComparePopup();
+                   return;
+              }
+
+              // If popup is open, block other shortcuts (except potentially hole-related ones if needed)
+              if (isComparePopupOpen) {
+                  // console.log("Keydown blocked by open popup:", e.key); // Optional debug
+                  return;
+              }
+
+              // --- Original Keydown Logic (popup closed) ---
+              const finp=document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='TEXTAREA'||document.activeElement.isContentEditable;
+              if(e.key==='Escape'){ const c=simulateEscapeKeyPressLogic(); if(c||!finp)e.preventDefault(); return; } // simulateEscapeKeyPressLogic now only handles non-popup escape cases
+
+              const idle=isGenerallyIdle(); // Use the modified idle check
+              if(e.key===' '&&!isSpacePressed&&!e.repeat&&idle&&!finp){isSpacePressed=true;canvasOuterContainer.style.cursor='grab';e.preventDefault();}
+              if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!e.shiftKey&&!e.repeat){if(idle){e.preventDefault();undo();}else console.log("Undo bloqueado.");}
+              if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!e.repeat){if(idle){e.preventDefault();redo();}else console.log("Redo bloqueado.");}
+              if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='z'&&!e.repeat){if(idle){e.preventDefault();redo();}else console.log("Redo bloqueado.");}
+              if(idle&&!finp&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
+                  const k=e.key.toLowerCase();
+                  if(['b','e','l','v','c','x','q','w'].includes(k))e.preventDefault();
+                  switch(k){
+                      case'b':setActiveTool('brush');break;
+                      case'e':setActiveTool('eraser');break;
+                      case'v':setActiveTool('magic-wand');break;
+                      case'l':setActiveTool(e.shiftKey?'eraser-line':'line');break;
+                      case'c':case'w':setActiveTool('continuous-keep-line');break;
+                      case'x':case'q':simulateEscapeKeyPressLogic();setActiveTool('continuous-eraser-line');break;
+                  }
+              }
+          }
+        function handleKeyUp(e){
+              // Don't process keyup if popup is open (Space release handled)
+              if(isComparePopupOpen && e.key !== ' ') return;
+
+              if(e.key===' '){isSpacePressed=false;if(!isPanning)canvasOuterContainer.style.cursor=getToolCursor();e.preventDefault();}
+          }
+        function handleWheelZoom(e){
+              // Block zoom if popup is open OR normal blocking conditions apply
+              if(isComparePopupOpen || !originalImage || !isGenerallyIdle())return;
+
+              // --- Original Zoom Logic ---
+              e.preventDefault();
+              const{screenX:sx,screenY:sy}=getInteractionPos(e);
+              const zf=e.deltaY<0?1.1:1/1.1;
+              zoomInOut(zf,sx,sy);
+          }
+        function zoomInOut(f,px,py){if(!originalImage)return;const cz=zoomLevel,nz=Math.max(0.1,Math.min(cz*f,15));if(nz===cz)return;const dx=(px-panX)*(nz/cz-1),dy=(py-panY)*(nz/cz-1);zoomLevel=nz;panX-=dx;panY-=dy;updateTransform();updateStatusBar();clearPreviewCanvas();if (!isComparePopupOpen) drawToolPreview(currentMousePos.x,currentMousePos.y);}
+
+        // --- Tool Management ---
+        function setActiveTool(tool) {
+             // Don't change tool if popup is open
+             if(isComparePopupOpen) return;
+
+             // --- Original setActiveTool logic ---
+             if (tool !== currentTool && currentTool !== 'hole-remover') simulateEscapeKeyPressLogic();
+             if (tool !== 'hole-remover') {
+                if (waitingForInnerHoleClick) cancelInnerHoleClickMode(true); // Cancel hole mode if switching tool
+                currentTool = tool;
+             }
+             console.log("Herramienta activa:", tool);
+             const toolBtns = [brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn];
+             toolBtns.forEach(b => b?.classList.remove('active-tool'));
+             if (tool !== 'hole-remover') removeInnerHoleBtn?.classList.remove('active-hole-remover'); // Ensure hole button isn't marked active
+
+             const activeBtn = document.getElementById(`${tool}-tool`);
+             if (activeBtn && toolBtns.includes(activeBtn)) activeBtn.classList.add('active-tool');
+
+             // Update options display
+             const showSize = ['brush', 'eraser', 'line', 'eraser-line', 'continuous-keep-line', 'continuous-eraser-line'].includes(tool);
+             const showFeatherOpacityShape = ['brush', 'eraser'].includes(tool);
+             if(brushOptionsSection) brushOptionsSection.style.display = (showSize || showFeatherOpacityShape) ? 'block' : 'none';
+             if(brushSizeSlider?.parentElement) brushSizeSlider.parentElement.style.display = showSize ? 'block' : 'none';
+             if(featherOptionDiv) featherOptionDiv.style.display = showFeatherOpacityShape ? 'block' : 'none';
+             if(brushOpacitySlider?.parentElement) brushOpacitySlider.parentElement.style.display = showFeatherOpacityShape ? 'block' : 'none';
+             if(shapeOptionDiv) shapeOptionDiv.style.display = showFeatherOpacityShape ? 'block' : 'none';
+
+             canvasOuterContainer.style.cursor = getToolCursor();
+             updateStatusBar();
+             updateToolOptionsDisplay();
+             updateActionButtonsState(); // Update general button states
+             clearPreviewCanvas();
+             if (tool !== 'hole-remover' && !isComparePopupOpen) drawToolPreview(currentMousePos.x, currentMousePos.y);
+         }
+         // *** MODIFIED: getToolCursor ***
+         function getToolCursor(){
+             // Priority: Hole click mode uses crosshair
+             if (waitingForInnerHoleClick) return 'crosshair';
+             // If compare popup is open (and not waiting for hole click), use default
+             if (isComparePopupOpen) return 'default';
+             // Original cursor logic (only applies if popup closed & not waiting)
+             if(isSpacePressed && !isPanning) return 'grab';
+             if(isPanning) return 'grabbing';
+             if(currentTool==='brush' || currentTool==='eraser') return 'none';
+             if(['line','eraser-line','continuous-keep-line','continuous-eraser-line', 'magic-wand'].includes(currentTool)) return 'crosshair';
+             return 'default';
+         }
+        function updateToolOptionsDisplay(){if(brushSizeValue)brushSizeValue.textContent=brushOptions.size;if(brushFeatherValue)brushFeatherValue.textContent=brushOptions.feather.toFixed(2);if(brushOpacityValue)brushOpacityValue.textContent=brushOptions.opacity.toFixed(2);if(shapeCircleBtn)shapeCircleBtn.classList.toggle('active-shape',brushOptions.shape==='circle');if(shapeSquareBtn)shapeSquareBtn.classList.toggle('active-shape',brushOptions.shape==='square');}
+        function updateTransform(){if(canvasInnerContainer)canvasInnerContainer.style.transform=`translate(${panX}px, ${panY}px) scale(${zoomLevel})`;}
+        // *** MODIFIED: updateStatusBar ***
+        function updateStatusBar(){
+             if(zoomLevelSpan)zoomLevelSpan.textContent=Math.round(zoomLevel*100);
+             if(!currentToolSpan) return;
+             let tn='Ninguna';
+
+             // *** ADDED: Prioritize waitingForInnerHoleClick status ***
+             if (waitingForInnerHoleClick) {
+                 tn = 'Eliminar Hueco (Clic)';
+             } else if (isComparePopupOpen) {
+                 tn = 'Comparando'; // Show comparing if popup is open and not waiting for hole
+             } else if(!originalImage) {
+                 tn='Ninguna (Carga imagen)';
+             } else {
+                 // Original tool status logic when popup is closed and not waiting
+                 switch(currentTool){
+                     case'brush':tn='Pincel (B)';break;
+                     case'eraser':tn='Borrador (E)';break;
+                     case'magic-wand':tn='Varita Mágica (V)';break;
+                     case'line':tn='Línea Conservar (L)';break;
+                     case'eraser-line':tn='Línea Borrar (Shift+L)';break;
+                     case'continuous-keep-line':tn='Trazo Conservar (C/W)';break;
+                     case'continuous-eraser-line':tn='Trazo Borrar (X/Q)';break;
+                 }
+                 if(isDrawingLine)tn+=' (Dibujando línea...)';
+                 else if(isDrawingContinuousLine)tn+=' (Dibujando trazo...)';
+                 else if(isDrawing)tn+=' (Pintando...)';
+                 else if(isPanning)tn+=' (Moviendo...)';
+             }
+             currentToolSpan.textContent=tn;
+         }
+         // *** MODIFIED: updateActionButtonsState ***
+         function updateActionButtonsState() {
+             const imageLoaded = !!originalImage && !!ctx && !!maskCtx;
+             const canUndo = history.length > 1;
+             const canRedo = redoHistory.length > 0;
+             // Check idle state *without* considering the popup specifically for hole removal enabling later
+             const isAppEffectivelyIdleForHoleRemoval = !isDrawing && !isDrawingLine && !isDrawingContinuousLine && !isFloodFilling && !isPanning;
+
+             if (isComparePopupOpen) {
+                 // Disable MOST controls
+                 const controlsToDisable = [ uploadBtn, pasteBtn, brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn, removeEdgeBgBtn, /* REMOVED removeInnerHoleBtn */ brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn, /* edgeColorToleranceSlider KEEP */ undoBtn, redoBtn, resetBtn, bgCheckerboardBtn, bgWhiteBtn, bgBlackBtn, exportBtn, copyBtn, compareBtn ];
+                 controlsToDisable.forEach(el => { if(el) el.disabled = true; });
+                 if (edgeColorToleranceSlider) edgeColorToleranceSlider.disabled = false; // Keep tolerance enabled for hole remover
+
+                 // Clear active classes for most tools/buttons that might remain
+                 [brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn].forEach(btn => btn?.classList.remove('active-tool'));
+                 [bgCheckerboardBtn, bgWhiteBtn, bgBlackBtn].forEach(btn => btn?.classList.remove('active-bg'));
+                 // NOTE: We leave removeInnerHoleBtn's active class handled below
+
+                 // *** SPECIFICALLY handle removeInnerHoleBtn while popup is open ***
+                 if (removeInnerHoleBtn) {
+                     // Enable if image loaded and not currently flood filling
+                     removeInnerHoleBtn.disabled = !(imageLoaded && !isFloodFilling);
+                     // Update its visual active state based on waitingForInnerHoleClick
+                     removeInnerHoleBtn.classList.toggle('active-hole-remover', waitingForInnerHoleClick && !removeInnerHoleBtn.disabled);
+                 }
+
+                 // Still return here to prevent enabling other things not meant to work during compare
+                 return;
+             }
+
+             // --- Normal logic when popup is CLOSED ---
+             const isAppIdle = isGenerallyIdle() && !waitingForInnerHoleClick; // Full idle check
+
+             undoBtn.disabled = !(imageLoaded && canUndo && isAppIdle);
+             redoBtn.disabled = !(imageLoaded && canRedo && isAppIdle);
+             undoCountSpan.textContent = Math.max(0, history.length - 1);
+             redoCountSpan.textContent = redoHistory.length;
+
+             resetBtn.disabled = !(imageLoaded && canUndo && isAppIdle);
+             exportBtn.disabled = !(imageLoaded && isAppIdle);
+             copyBtn.disabled = !(imageLoaded && isClipboardWriteSupported && isAppIdle);
+             pasteBtn.disabled = !(isClipboardReadSupported && isAppIdle);
+             if(compareBtn) compareBtn.disabled = !(imageLoaded && isAppIdle);
+
+             const manualTools = [brushBtn, eraserBtn, magicWandBtn, lineBtn, eraserLineBtn, continuousKeepLineBtn, continuousEraserLineBtn];
+             manualTools.forEach(btn => {
+                 if (btn) btn.disabled = !(imageLoaded && isAppIdle);
+             });
+
+             const disableOptions = !(imageLoaded && isAppIdle);
+             [brushSizeSlider, brushFeatherSlider, brushOpacitySlider, shapeCircleBtn, shapeSquareBtn].forEach(control => {
+                  if (control) control.disabled = disableOptions;
+             });
+             // Enable tolerance if image loaded AND (idle or waiting for hole click)
+             if (edgeColorToleranceSlider) edgeColorToleranceSlider.disabled = !(imageLoaded && (isAppIdle || waitingForInnerHoleClick));
+
+             const disableAuto = !(imageLoaded && isAppIdle);
+             if (removeEdgeBgBtn) removeEdgeBgBtn.disabled = disableAuto || isFloodFilling;
+             // Enable hole remover if image loaded AND (idle or waiting for hole click), and not filling
+             if (removeInnerHoleBtn) {
+                 removeInnerHoleBtn.disabled = !(imageLoaded && (isAppIdle || waitingForInnerHoleClick) && !isFloodFilling);
+                 removeInnerHoleBtn.classList.toggle('active-hole-remover', waitingForInnerHoleClick && !removeInnerHoleBtn.disabled);
+             }
+
+             [bgCheckerboardBtn, bgWhiteBtn, bgBlackBtn].forEach(btn => {
+                 if(btn) btn.disabled = !imageLoaded;
+             });
+
+             // Update active tool highlights (only when popup closed and not waiting for hole click)
+             manualTools.forEach(btn => {
+                  if (btn) {
+                      const toolName = btn.id.replace('-tool', '');
+                      const isActiveTool = (currentTool === toolName);
+                      btn.classList.toggle('active-tool', isActiveTool && !btn.disabled && !waitingForInnerHoleClick);
+                  }
+             });
+             [bgCheckerboardBtn, bgWhiteBtn, bgBlackBtn].forEach(btn => {
+                  if (btn) btn.classList.toggle('active-bg', btn.id === `bg-${currentBackground}`);
+             });
+         }
+
+
+        // --- Utility Functions ---
+         function showButtonFeedback(button, status, message = null, duration = 1500) {
+             if (!button) return;
+             const isHoleRemoverButton = button.id === 'remove-inner-hole-btn';
+             const isCompareButton = button.id === 'compare-btn';
+             const isWorkingOrCancelling = status === 'working' || status === 'cancelling';
+             const isJustActivatingHole = status === 'active-hole-remover';
+
+             // Store original state only if not already stored and not just activating hole mode
+             if (!button.dataset.originalHtml && !isJustActivatingHole) button.dataset.originalHtml = button.innerHTML;
+             if (!button.dataset.originalTitle && !isJustActivatingHole) button.dataset.originalTitle = button.title;
+             if (button.feedbackTimeout) clearTimeout(button.feedbackTimeout); button.feedbackTimeout = null;
+
+             // Reset classes
+             button.classList.remove('success', 'error', 'working', 'cancelling', 'active-hole-remover');
+
+             // Apply new status class / specific active class
+             if (status === 'active-hole-remover') {
+                 button.classList.add('active-hole-remover');
+             } else if (status) {
+                 button.classList.add(status);
+             }
+
+             // Set message and title
+             let finalMessage = message;
+             let finalTitle = button.dataset.originalTitle || button.title;
+             if (status === 'active-hole-remover') {
+                 finalMessage = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                 finalTitle = "Haz clic en un área interna...";
+             }
+
+             if (finalMessage && button.innerHTML !== finalMessage) {
+                 if (finalMessage.startsWith('<i class="')) button.innerHTML = finalMessage;
+                 else button.textContent = finalMessage;
+             }
+             button.title = finalTitle;
+
+             // Handle disabling
+             // Disable if working/cancelling.
+             // Disable compare button if popup is open.
+             // Hole remover button disabling is handled by updateActionButtonsState.
+             button.disabled = isWorkingOrCancelling || (isCompareButton && isComparePopupOpen);
+             if (isHoleRemoverButton) {
+                // Let updateActionButtonsState handle disabling based on more complex state
+                updateActionButtonsState();
+             }
+
+
+             // Set timeout to revert SUCCESS or ERROR states
+             const shouldRevert = (status === 'success' || status === 'error');
+             if (shouldRevert) {
+                 const timeoutVar = 'feedbackTimeout'; // Use generic timeout name
+                 button[timeoutVar] = setTimeout(() => {
+                     button.classList.remove(status); // Remove success/error class
+
+                     // Revert HTML/Title ONLY if the button is NOT the hole remover OR if hole remover is NOT currently active
+                     if (!isHoleRemoverButton || !waitingForInnerHoleClick) {
+                         if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+                         if (button.dataset.originalTitle) button.title = button.dataset.originalTitle;
+                     } else if (isHoleRemoverButton && waitingForInnerHoleClick) {
+                         // If it IS the hole remover and still waiting, ensure text/title are correct for active state
+                         button.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i> Haz Clic en Hueco';
+                         button.title = "Haz clic en un área interna...";
+                     }
+
+                     // Re-evaluate button states after feedback timeout
+                     updateActionButtonsState();
+
+                 }, duration);
+             } else if (!isWorkingOrCancelling && !isJustActivatingHole) {
+                  // If not working/cancelling/activating, just update states immediately
+                  updateActionButtonsState();
+             }
+         }
+         function checkClipboardSupport(){if(!isClipboardReadSupported){if(pasteSupportWarning)pasteSupportWarning.classList.remove('hidden');if(pasteBtn){pasteBtn.disabled=true;pasteBtn.title="Pegar no soportado.";}console.warn("Clipboard read no soportado.");}else{if(pasteSupportWarning)pasteSupportWarning.classList.add('hidden');}if(!isClipboardWriteSupported){if(clipboardSupportWarning)clipboardSupportWarning.classList.remove('hidden');if(copyBtn){copyBtn.disabled=true;copyBtn.title="Copiar no soportado.";}console.warn("Clipboard write no soportado.");}else{if(clipboardSupportWarning)clipboardSupportWarning.classList.add('hidden');}updateActionButtonsState();}
+         function saveStateToHistory(){
+             if(!maskCtx||!maskCanvas)return;
+             try{
+                 if (redoHistory.length > 0) {
+                     console.log("Nueva acción detectada, limpiando historial Redo.");
+                     redoHistory = [];
+                 }
+                 const currentState = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                 history.push(currentState);
+                 if(history.length > MAX_HISTORY + 1) {
+                     history.shift();
+                 }
+                 console.log("Historial:", history.length -1, "Redo:", redoHistory.length);
+                 updateActionButtonsState(); // Update counts
+             } catch(e){
+                 console.error("Error guardando estado en el historial:",e);
+             }
+         }
+         function undo(){
+             if(isComparePopupOpen || history.length <= 1 || !isGenerallyIdle()) return; // Block if popup open
+             console.log("Deshaciendo...");
+             try{
+                 const currentState = history.pop();
+                 redoHistory.push(currentState);
+                 const previousState = history[history.length - 1];
+                 if(previousState) {
+                     maskCtx.putImageData(previousState, 0, 0);
+                     requestRender();
+                 }
+                 console.log("Historial:", history.length -1, "Redo:", redoHistory.length);
+             } catch(e) {
+                 console.error("Error al deshacer:", e);
+             } finally {
+                 updateActionButtonsState();
+             }
+         }
+         function redo() {
+             if (isComparePopupOpen || redoHistory.length === 0 || !isGenerallyIdle()) return; // Block if popup open
+             console.log("Rehaciendo...");
+             try {
+                 const nextState = redoHistory.pop();
+                 history.push(nextState);
+                 if (history.length > MAX_HISTORY + 1) {
+                    history.shift();
+                 }
+                 maskCtx.putImageData(nextState, 0, 0);
+                 requestRender();
+                 console.log("Historial:", history.length -1, "Redo:", redoHistory.length);
+             } catch(e) {
+                console.error("Error al rehacer:", e);
+             } finally {
+                 updateActionButtonsState();
+             }
+         }
+         function showProcessingOverlay(m){if(processingStatusText)processingStatusText.textContent=m||"Procesando...";if(processingOverlay)processingOverlay.classList.remove('hidden');}
+         function hideProcessingOverlay(){if(processingOverlay)processingOverlay.classList.add('hidden');}
+         async function createFinalImageBlob(f='image/png'){if(!originalImage||!maskCanvas)return null;console.log("Creando Blob final (transparente)...");const fc=document.createElement('canvas');fc.width=originalImage.naturalWidth;fc.height=originalImage.naturalHeight;const fctx=fc.getContext('2d');if(!fctx){console.error("No ctx final.");return null;}fctx.clearRect(0,0,fc.width,fc.height);fctx.drawImage(originalImage,0,0);fctx.globalCompositeOperation='destination-in';fctx.drawImage(maskCanvas,0,0);fctx.globalCompositeOperation='source-over';return new Promise(r=>fc.toBlob(r,f));}
+         async function exportImage(){if(isComparePopupOpen || !originalImage||!exportBtn||exportBtn.disabled)return; // Block if popup open
+             showButtonFeedback(exportBtn,'working','Exportando...');try{const b=await createFinalImageBlob();if(!b)throw new Error("Fallo Blob.");const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`${imageFilename}_sin_fondo.png`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);showButtonFeedback(exportBtn,'success','<i class="fas fa-check"></i> Exportado');}catch(e){console.error("Error exportando:",e);alert(`Error exportar: ${e.message}`);showButtonFeedback(exportBtn,'error','<i class="fas fa-times"></i> Error');}}
+         async function copyImageToClipboard(){if(isComparePopupOpen || !originalImage||!isClipboardWriteSupported||!copyBtn||copyBtn.disabled)return; // Block if popup open
+             showButtonFeedback(copyBtn,'working','Copiando...');try{const b=await createFinalImageBlob('image/png');if(!b)throw new Error("Fallo Blob.");const i=new ClipboardItem({'image/png':b});await navigator.clipboard.write([i]);showButtonFeedback(copyBtn,'success','<i class="fas fa-check"></i> Copiado');}catch(e){console.error("Error copiando:",e);let m="Error desconocido.";if(e.name==='NotAllowedError')m="Permiso denegado.";else if(e.message?.toLowerCase().includes("large"))m="Imagen grande.";else if(e.name==='SecurityError')m="Error seguridad.";alert(`No se pudo copiar: ${m}\nDetalles: ${e.message}`);showButtonFeedback(copyBtn,'error','<i class="fas fa-times"></i> Error');}}
+         async function handlePasteButtonClick(){if(isComparePopupOpen || !isClipboardReadSupported||!pasteBtn||pasteBtn.disabled)return; // Block if popup open
+             console.log("Intentando pegar (botón)...");showButtonFeedback(pasteBtn,'working','Pegando...');try{const p=await navigator.permissions.query({name:'clipboard-read'});if(p.state==='denied')throw new Error("Permiso denegado.");const ci=await navigator.clipboard.read();let found=false;for(const item of ci){const it=item.types.find(t=>t.startsWith("image/"));if(it){const b=await item.getType(it);simulateEscapeKeyPressLogic();handleFile(new File([b],"img_pegada.png",{type:it}));found=true;break;}}if(found)showButtonFeedback(pasteBtn,'success','<i class="fas fa-check"></i> Pegado');else showButtonFeedback(pasteBtn,'error','No imagen',1000);}catch(e){console.error("Error pegando:",e);let m="Error.";if(e.name==='NotAllowedError'||e.message?.includes("denied"))m="Permiso denegado.";else if(e.name==='SecurityError')m="Error seguridad.";else if(e.message?.includes("No valid data"))m="No imagen.";else if(e.message?.includes("activation"))m="Requiere interacción.";alert(`No se pudo pegar: ${m}\nDetalles: ${e.message}`);showButtonFeedback(pasteBtn,'error','<i class="fas fa-times"></i> Error');}}
+         function handleClipboardPaste(cd){if(isComparePopupOpen || !cd?.items)return false; // Block if popup open
+             console.log("Evento paste...");let found=false;for(const i of cd.items){if(i.kind==='file'&&i.type.startsWith('image/')){const f=i.getAsFile();if(f){simulateEscapeKeyPressLogic();handleFile(f);found=true;break;}}}if(!found)console.log("No imagen 'file' en paste.");return found;}
+         function colorDistance(r1,g1,b1,r2,g2,b2){const dr=r1-r2,dg=g1-g2,db=b1-b2;return dr*dr+dg*dg+db*db;}
+
+         // --- Control Fondo Previsualización ---
+         function setBackgroundPreview(bgType) {
+             if (!canvasSection) return;
+              // Allow changing background even if popup is open? Assume NO for now.
+             if (isComparePopupOpen) return;
+             console.log(`Cambiando fondo a: ${bgType}`);
+             currentBackground = bgType;
+             canvasSection.classList.remove('checkerboard-bg', 'solid-white-bg', 'solid-black-bg');
+             switch(bgType) {
+                 case 'white': canvasSection.classList.add('solid-white-bg'); break;
+                 case 'black': canvasSection.classList.add('solid-black-bg'); break;
+                 case 'checkerboard': default: canvasSection.classList.add('checkerboard-bg'); break;
+             }
+             updateActionButtonsState();
+         }
+
+         // --- Lógica Varita Mágica ---
+         async function applyMagicWand(startX, startY) {
+             // Block if popup open
+             if (isComparePopupOpen) { console.warn("Varita Mágica bloqueada: Popup abierto."); return; }
+             console.log(`%c>>> Varita Mágica en (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: magenta; font-weight: bold;');
+             if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || isFloodFilling || isDrawing || isDrawingLine || isDrawingContinuousLine || waitingForInnerHoleClick) {
+                 console.warn("Varita Mágica abortada: Estado inválido.");
+                 showButtonFeedback(magicWandBtn, 'error', 'Ocupado', 1000);
+                 return;
+             }
+             const width = maskCanvas.width; const height = maskCanvas.height;
+             startX = Math.floor(startX); startY = Math.floor(startY);
+             if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
+                 console.log("Clic fuera de límites.");
+                 showButtonFeedback(magicWandBtn, 'error', 'Fuera Imagen', 1000);
+                 return;
+             }
+             showProcessingOverlay("Analizando con Varita Mágica...");
+             await new Promise(resolve => setTimeout(resolve, 50));
+             let pixelsChanged = 0; let success = false; let message = 'Error Desconocido'; let statusClass = 'error';
+             try {
+                 const maskImageData = maskCtx.getImageData(0, 0, width, height);
+                 const maskPixels = maskImageData.data; const originalPixels = originalImageDataCache.data;
+                 const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3;
+                 const startIndex = (startY * width + startX) * 4;
+                 const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
+                 const visited = new Uint8Array(width * height); const queue = [[startX, startY]]; const matchedPixelsCoords = [];
+                 visited[startY * width + startX] = 1;
+                 if (maskPixels[startIndex + 3] >= 128) matchedPixelsCoords.push([startX, startY]); // Only add if opaque initially
+                 let head = 0; const maxQueueSize = width * height * 1.5; // Increased limit
+                 while (head < queue.length && queue.length < maxQueueSize) {
+                     const [x, y] = queue[head++];
+                     const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]];
+                     for (const [nx, ny] of neighbors) {
+                         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                             const nIndexLinear = ny * width + nx;
+                             if (visited[nIndexLinear] === 0) {
+                                 visited[nIndexLinear] = 1; const nIndexRGBA = nIndexLinear * 4;
+                                 // Check original pixel color similarity
+                                 const nR_orig = originalPixels[nIndexRGBA]; const nG_orig = originalPixels[nIndexRGBA + 1]; const nB_orig = originalPixels[nIndexRGBA + 2];
+                                 if (colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig) <= toleranceSq) {
+                                     queue.push([nx, ny]);
+                                     // Check if this matched pixel is currently opaque in the MASK
+                                     if (maskPixels[nIndexRGBA + 3] >= 128) {
+                                         matchedPixelsCoords.push([nx, ny]);
+                                     }
+                                 }
+                             }
+                         }
+                     }
+                 }
+                 if (queue.length >= maxQueueSize) { console.warn(`Varita Mágica alcanzó límite de cola desde (${startX}, ${startY}).`); message = 'Área Muy Grande'; statusClass = 'error'; success = false;
+                 } else if (matchedPixelsCoords.length > 0) {
+                     console.log(`   Varita encontró ${matchedPixelsCoords.length} píxeles opacos coincidentes.`);
+                     // Iterate through ONLY the matched pixels that were initially opaque
+                     for (const [mx, my] of matchedPixelsCoords) {
+                         const mIndex = (my * width + mx) * 4;
+                         // Double check opacity before changing (might have changed in parallel?)
+                         if (maskPixels[mIndex + 3] >= 128) {
+                             maskPixels[mIndex + 3] = 0; // Make transparent
+                             pixelsChanged++;
+                         }
+                     }
+                     if (pixelsChanged > 0) {
+                         maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender(); message = `<i class="fas fa-check"></i> Área Eliminada (${pixelsChanged}px)`; statusClass = 'success'; success = true;
+                     } else { message = 'No Cambios Visibles'; statusClass = 'error'; success = false; }
+                 } else { message = 'Ningún Píxel Opaco'; statusClass = 'error'; success = false; console.log("   Varita no encontró píxeles opacos coincidentes."); }
+             } catch (error) { console.error("Error crítico durante la operación Varita Mágica:", error); alert(`Error con la Varita Mágica: ${error.message}\nConsulta la consola.`); message = '<i class="fas fa-times"></i> Error Interno'; statusClass = 'error'; success = false;
+             } finally { hideProcessingOverlay(); showButtonFeedback(magicWandBtn, statusClass, message, success ? 1500 : 2500); updateActionButtonsState(); }
+         }
+
+
+        // --- Compare Popup Functions ---
+        async function openComparePopup(){
+            if (!originalImage || !comparePopupOverlay || !compareBeforeImg || !compareAfterImg || isComparePopupOpen) { console.warn("No abrir comparación: faltan elementos, imagen no cargada o ya está abierto."); return; }
+            const slider = comparePopupOverlay.querySelector("img-comparison-slider");
+            if (!slider) { console.error("Error crítico: Slider de comparación no encontrado en el DOM."); alert("Error interno al abrir la comparación."); return; }
+            console.log("Abriendo popup de comparación...");
+
+            // Cancel hole mode if active when opening compare popup
+            if (waitingForInnerHoleClick) {
+                cancelInnerHoleClickMode(true); // Silent cancel
+            }
+
+            isComparePopupOpen = true; // Set state AFTER cancelling hole mode
+            updateActionButtonsState(); // Update buttons (will disable most things)
+            updateStatusBar(); // Update status bar text
+            document.body.style.overflow = 'hidden'; // Prevent body scroll
+            canvasOuterContainer.style.cursor = 'default'; // Ensure default cursor over canvas area
+
+            // Prepare images
+            compareBeforeImg.alt = `Antes (Cargando...)`; compareAfterImg.alt = 'Después (Cargando...)';
+            compareBeforeImg.src = ''; compareAfterImg.src = '';
+            showButtonFeedback(compareBtn, 'working', 'Generando...', 60000); // Show feedback on compare button
+            try {
+                compareBeforeImg.src = originalImage.src; // Use cached original src
+                compareBeforeImg.alt = `Antes (${originalImage.naturalWidth}×${originalImage.naturalHeight})`;
+                const blob = await createFinalImageBlob('image/png'); // Generate current state blob
+                if (!blob) throw new Error("Fallo al crear el blob de la imagen 'Después'");
+                const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = e => rej(e); r.readAsDataURL(blob); });
+                compareAfterImg.src = dataUrl;
+                compareAfterImg.alt = `Después (${originalImage.naturalWidth}×${originalImage.naturalHeight})`;
+                console.log("   Imagen 'Después' generada y cargada en el slider.");
+
+                // Show popup AFTER images are likely ready
+                slider.value = 50; // Reset slider position
+                comparePopupOverlay.classList.remove('hidden');
+
+                // Update compare button feedback after success
+                 showButtonFeedback(compareBtn, 'success', '<i class="fas fa-check"></i> Listo', 1500);
+
+            } catch (err) {
+                console.error("Error generando imágenes para el popup de comparación:", err);
+                alert(`Error al generar la imagen editada para comparación: ${err.message}`);
+                showButtonFeedback(compareBtn, 'error', 'Error', 2000);
+                closeComparePopup(true); // Force close if generation failed
+            }
+        }
+        function closeComparePopup(forceClose = false){
+             if (!isComparePopupOpen && !forceClose) return;
+             console.log("Cerrando popup de comparación...");
+             isComparePopupOpen = false; // Update state FIRST
+             if(comparePopupOverlay) comparePopupOverlay.classList.add('hidden');
+             document.body.style.overflow=''; // Restore body scroll
+             // Clear images to free memory
+             if(compareBeforeImg) compareBeforeImg.src='';
+             if(compareAfterImg) compareAfterImg.src='';
+
+             // Crucially, re-enable buttons and update status
+             updateActionButtonsState();
+             updateStatusBar();
+             // Restore cursor based on current tool (now that popup is closed)
+             canvasOuterContainer.style.cursor = getToolCursor();
+
+             // Reset compare button appearance if it wasn't force closed
+             if (!forceClose && compareBtn ) {
+                 // Remove status classes added during open/generation
+                 compareBtn.classList.remove('success', 'error', 'working', 'cancelling');
+                 if (compareBtn.dataset.originalHtml) compareBtn.innerHTML = compareBtn.dataset.originalHtml;
+                 if (compareBtn.dataset.originalTitle) compareBtn.title = compareBtn.dataset.originalTitle;
+                 // Re-run updateActionButtonsState one more time to ensure its disabled state is correct
+                 updateActionButtonsState();
+             }
+        }
+
+
+        // --- Flood Fill Logic (Background & Holes) ---
+         async function handleRemoveBackgroundByFloodFill(){
+             // Block if popup open
+             if (isComparePopupOpen) { console.warn("FloodFill Bordes bloqueado: Popup abierto."); return; }
+             console.log(`%c>>> FloodFill Bordes`,'color:blue;font-weight:bold');
+             if (!originalImage||!maskCtx||!maskCanvas||!originalImageDataCache||isFloodFilling||isDrawing||isDrawingLine||isDrawingContinuousLine||waitingForInnerHoleClick){console.warn("FloodFill abortado.");if(!isFloodFilling)showButtonFeedback(removeEdgeBgBtn,'error','Ocupado',1000);return;}isFloodFilling=true;cancelFloodFillRequest=false;updateActionButtonsState();showButtonFeedback(removeEdgeBgBtn,'working','Analizando...');showProcessingOverlay('Analizando bordes...');await new Promise(r=>setTimeout(r,50));try{if(cancelFloodFillRequest)throw new Error("CancelledBeforeStart");processingStatusText.textContent="Procesando fondo...";const t=parseInt(edgeColorToleranceSlider.value,10),tsq=t*t*3;const oD=originalImageDataCache,miD=maskCtx.getImageData(0,0,maskCanvas.width,maskCanvas.height),w=miD.width,h=miD.height,v=Array(h).fill(null).map(()=>Array(w).fill(false));console.log(` FloodFill Bordes. Tol:${t}, DistSq:${tsq.toFixed(0)}`);const st=performance.now();let canc=false;for(let x=0;x<w;x++){if(cancelFloodFillRequest){canc=true;break;}if(await floodFillMaskAsync(oD,miD,x,0,tsq,v)){canc=true;break;}if(await floodFillMaskAsync(oD,miD,x,h-1,tsq,v)){canc=true;break;}}if(!canc){for(let y=1;y<h-1;y++){if(cancelFloodFillRequest){canc=true;break;}if(await floodFillMaskAsync(oD,miD,0,y,tsq,v)){canc=true;break;}if(await floodFillMaskAsync(oD,miD,w-1,y,tsq,v)){canc=true;break;}}}const et=performance.now();console.log(` FloodFill terminado ${((et-st)/1000).toFixed(2)}s. Cancelado:${canc||cancelFloodFillRequest}`);if(cancelFloodFillRequest||canc)throw new Error("Cancelled");maskCtx.putImageData(miD,0,0);saveStateToHistory();renderCanvas();console.log("<<< FloodFill Completado.");showButtonFeedback(removeEdgeBgBtn,'success','<i class="fas fa-check"></i> Hecho');}catch(e){if(e.message==="Cancelled"||e.message==="CancelledBeforeStart"){console.log("%cFloodFill CANCELADO.",'color:orange;');showButtonFeedback(removeEdgeBgBtn,'error','Cancelado',1500);}else{console.error("Error FloodFill:",e);alert(`Error proceso:${e.message}`);showButtonFeedback(removeEdgeBgBtn,'error','Error',1500);}}finally{console.log(" Finally FloodFill: Limpiando.");isFloodFilling=false;cancelFloodFillRequest=false;hideProcessingOverlay();if(removeEdgeBgBtn&&!removeEdgeBgBtn.classList.contains('success')&&!removeEdgeBgBtn.classList.contains('error')){if(removeEdgeBgBtn.dataset.originalHtml)removeEdgeBgBtn.innerHTML=removeEdgeBgBtn.dataset.originalHtml;if(removeEdgeBgBtn.dataset.originalTitle)removeEdgeBgBtn.title=removeEdgeBgBtn.dataset.originalTitle;}updateActionButtonsState();}}
+         async function floodFillMaskAsync(oD,mD,sx,sy,tsq,v){const w=oD.width,h=oD.height,oP=oD.data,mP=mD.data,cInt=5000;if(sx<0||sx>=w||sy<0||sy>=h||v[sy][sx])return false;const sIdx=(sy*w+sx)*4;if(mP[sIdx+3]<128||oP[sIdx+3]<128){v[sy][sx]=true;return false;}const sR=oP[sIdx],sG=oP[sIdx+1],sB=oP[sIdx+2];const q=[[sx,sy]];v[sy][sx]=true;mP[sIdx+3]=0;let pp=0;while(q.length>0){pp++;if(pp%cInt===0){if(cancelFloodFillRequest)return true;await new Promise(r=>setTimeout(r,0));if(cancelFloodFillRequest)return true;}const[x,y]=q.shift();const n=[[x,y-1],[x,y+1],[x-1,y],[x+1,y]];for(const[nx,ny]of n){if(nx>=0&&nx<w&&ny>=0&&ny<h&&!v[ny][nx]){v[ny][nx]=true;const nIdx=(ny*w+nx)*4;if(mP[nIdx+3]>=128&&oP[nIdx+3]>=128){const nR=oP[nIdx],nG=oP[nIdx+1],nB=oP[nIdx+2];if(colorDistance(sR,sG,sB,nR,nG,nB)<=tsq){q.push([nx,ny]);mP[nIdx+3]=0;}}}}}return false;}
+         // *** MODIFIED: activateInnerHoleClickMode ***
+         function activateInnerHoleClickMode() {
+             // REMOVED isComparePopupOpen check here
+             if (!originalImage || isFloodFilling || waitingForInnerHoleClick || isDrawing || isDrawingLine || isDrawingContinuousLine) {
+                 console.warn("No se puede activar 'Eliminar Hueco': Estado inválido o imagen no cargada.");
+                 // Don't show error feedback if only prevented by drawing/line/etc when popup open
+                 if (!isComparePopupOpen && !isGenerallyIdle() && !waitingForInnerHoleClick) {
+                      showButtonFeedback(removeInnerHoleBtn, 'error', 'Ocupado', 1000);
+                 }
+                 return;
+             }
+             console.log("Activando modo 'Eliminar Hueco Interno'");
+             waitingForInnerHoleClick = true;
+             // simulateEscapeKeyPressLogic(); // Don't call this if popup might be open
+             showButtonFeedback(removeInnerHoleBtn, 'active-hole-remover'); // Use feedback function for consistency
+             updateStatusBar(); // Update status bar to reflect change
+             updateActionButtonsState(); // Update button states (mainly the active class)
+             clearPreviewCanvas(); // Don't need preview when waiting for click
+             canvasOuterContainer.style.cursor = getToolCursor(); // Set cursor for canvas interaction (will be crosshair)
+         }
+         function cancelInnerHoleClickMode(silent = false) {
+             if (!waitingForInnerHoleClick) return;
+             if (!silent) console.log("Cancelando modo 'Eliminar Hueco Interno'");
+             waitingForInnerHoleClick = false; // Update state FIRST
+             if (holeRemoverFeedbackTimeout) { clearTimeout(holeRemoverFeedbackTimeout); holeRemoverFeedbackTimeout = null; }
+
+             // Reset button appearance using feedback function for consistency
+             if (removeInnerHoleBtn) {
+                 showButtonFeedback(removeInnerHoleBtn, null); // null status removes active classes and reverts text/title
+             }
+
+             // If popup is NOT open, set tool back to eraser and draw preview
+             if (!isComparePopupOpen) {
+                setActiveTool('eraser'); // Revert to a default tool
+                drawToolPreview(currentMousePos.x, currentMousePos.y); // Redraw preview for the new tool
+             } else {
+                // If popup IS open, just update status/buttons and set cursor
+                updateStatusBar();
+                updateActionButtonsState(); // Ensure button state is correct
+                canvasOuterContainer.style.cursor = getToolCursor(); // Set cursor (will be default)
+             }
+         }
+        // *** MODIFIED: removeInnerHoleAt ***
+        function removeInnerHoleAt(startX, startY) {
+             console.log(`%c>>> removeInnerHoleAt (${startX.toFixed(0)}, ${startY.toFixed(0)})`, 'color: purple; font-weight: bold;');
+             // REMOVED isComparePopupOpen check here
+             if (!originalImage || !maskCtx || !maskCanvas || !originalImageDataCache || !waitingForInnerHoleClick || isFloodFilling) {
+                 console.warn("Eliminar Hueco abortado: Estado inválido, datos faltantes, no esperando clic.");
+                 if (waitingForInnerHoleClick) { // Only show feedback if it was actively waiting
+                      showButtonFeedback(removeInnerHoleBtn, 'error', 'Error Estado', 1500);
+                 }
+                 // Crucially, turn off waiting mode if it failed but was active
+                 if (waitingForInnerHoleClick) {
+                      cancelInnerHoleClickMode(); // Reset the mode
+                 }
+                 return;
+             }
+
+             const width = maskCanvas.width; const height = maskCanvas.height;
+             startX = Math.floor(startX); startY = Math.floor(startY);
+             if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
+                 console.log("Clic fuera de límites.");
+                 showButtonFeedback(removeInnerHoleBtn, 'error', 'Fuera Imagen', 1000);
+                 // Turn off waiting mode
+                 cancelInnerHoleClickMode(); // Reset the mode
+                 return;
+             }
+
+             let pixelsChanged = 0; let success = false; let message = 'Error Desconocido'; let statusClass = 'error';
+             try {
+                 const maskImageData = maskCtx.getImageData(0, 0, width, height);
+                 const maskPixels = maskImageData.data; const originalPixels = originalImageDataCache.data;
+                 const tolerance = parseInt(edgeColorToleranceSlider.value, 10); const toleranceSq = tolerance * tolerance * 3;
+                 const startIndex = (startY * width + startX) * 4;
+                 if (maskPixels[startIndex + 3] < 128) {
+                     message = 'Ya Transparente'; statusClass = 'error'; success = false; console.log("Clic en área ya transparente.");
+                 } else {
+                     const startR = originalPixels[startIndex]; const startG = originalPixels[startIndex + 1]; const startB = originalPixels[startIndex + 2];
+                     const visited = new Uint8Array(width * height); const queue = [[startX, startY]];
+                     visited[startY * width + startX] = 1; maskPixels[startIndex + 3] = 0; pixelsChanged = 1;
+                     let head = 0; const maxQueueSize = width * height; // Use reasonable limit
+                     while (head < queue.length && queue.length < maxQueueSize) {
+                         const [x, y] = queue[head++];
+                         const neighbors = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]];
+                         for (const [nx, ny] of neighbors) {
+                             if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                 const nIndexLinear = ny * width + nx;
+                                 if (visited[nIndexLinear] === 0) {
+                                     visited[nIndexLinear] = 1; const nIndexRGBA = nIndexLinear * 4;
+                                     if (maskPixels[nIndexRGBA + 3] >= 128) { // Check MASK opacity
+                                         const nR_orig = originalPixels[nIndexRGBA]; const nG_orig = originalPixels[nIndexRGBA + 1]; const nB_orig = originalPixels[nIndexRGBA + 2];
+                                         if (colorDistance(startR, startG, startB, nR_orig, nG_orig, nB_orig) <= toleranceSq) {
+                                             queue.push([nx, ny]);
+                                             maskPixels[nIndexRGBA + 3] = 0; // Make transparent
+                                             pixelsChanged++;
+                                         }
+                                     }
+                                 }
+                             }
+                         }
+                     }
+                     if (queue.length >= maxQueueSize) { console.warn(`Flood fill (hueco) alcanzó límite de cola desde (${startX}, ${startY}).`); message = 'Área Muy Grande'; statusClass = 'error'; success = false; pixelsChanged = 0; // Reset count if failed due to size
+                     } else if (pixelsChanged > 0) { maskCtx.putImageData(maskImageData, 0, 0); saveStateToHistory(); requestRender(); message = '<i class="fas fa-check"></i> Hueco Borrado'; statusClass = 'success'; success = true; console.log(`   Hueco eliminado, ${pixelsChanged} píxeles afectados.`);
+                     } else { message = 'No Cambios'; statusClass = 'error'; success = false; console.log("   No se encontraron píxeles adicionales dentro de la tolerancia."); }
+                 }
+             } catch (error) { console.error("Error crítico durante la eliminación del hueco:", error); alert(`Error procesando el hueco: ${error.message}\nConsulta la consola.`); message = '<i class="fas fa-times"></i> Error Interno'; statusClass = 'error'; success = false;
+             } finally {
+                 showButtonFeedback(removeInnerHoleBtn, statusClass, message, success ? 1200 : 2000);
+                 // IMPORTANT: Deactivate waiting mode AFTER the action is done or failed
+                 waitingForInnerHoleClick = false;
+                 // Update states AFTER deactivating the mode
+                 updateStatusBar();
+                 updateActionButtonsState();
+                 // Restore cursor based on whether popup is still open
+                 canvasOuterContainer.style.cursor = getToolCursor(); // getToolCursor handles the logic
+             }
+         }
+
+
+    // --- Final cierre del listener DOMContentLoaded ---
+    }); // End DOMContentLoaded
+</script>
+Use code with caution.
+</body>
+</html>
