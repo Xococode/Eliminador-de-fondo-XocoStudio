@@ -5,7 +5,7 @@
 ---
 
 ## Acceso rápido a la aplicación 🚀
-👉 [**Probar en vivo aquí**](https://xococode.github.io/Eliminador-de-fondo-XocoStudio/index.html)
+👉 [**Probar en vivo aquí**](https://xococode.github.io/Eliminador-de-fondo-XocoStudio/Xocostudio9.html)
 
 ---
 
